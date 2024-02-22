@@ -9,6 +9,7 @@ import (
 	"os/exec"
 
 	sdk "github.com/grafana/grafana-plugin-sdk-go/data"
+	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
 	"github.com/scottlepp/go-duck/pkg/data"
 )
 
@@ -93,21 +94,33 @@ func (d *DuckDB) Query(query string) (string, error) {
 }
 
 // QueryFrame will load a dataframe into a view named RefID, and run the query against that view
-func (d *DuckDB) QueryFrame(name string, query string, frame *sdk.Frame) (string, error) {
-	dir, _, err := data.ToParquet(frame, d.Chunk)
+func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (string, error) {
+	dirs, err := data.ToParquet(frames, d.Chunk)
 	if err != nil {
 		return "", err
 	}
 
 	defer func() {
-		err := os.RemoveAll(dir)
-		if err != nil {
-			fmt.Println("failed to remove parquet files")
+		for _, dir := range dirs {
+			err := os.RemoveAll(dir)
+			if err != nil {
+				fmt.Println("failed to remove parquet files")
+			}
 		}
 	}()
 
-	cmd := fmt.Sprintf("CREATE VIEW %s AS (SELECT * from '%s/*.parquet');", frame.RefID, dir)
-	commands := []string{cmd, query}
+	commands := []string{}
+	created := map[string]bool{}
+	for _, frame := range frames {
+		if created[frame.RefID] {
+			continue
+		}
+		cmd := fmt.Sprintf("CREATE VIEW %s AS (SELECT * from '%s/*.parquet');", frame.RefID, dirs[frame.RefID])
+		commands = append(commands, cmd)
+		created[frame.RefID] = true
+	}
+
+	commands = append(commands, query)
 	res, err := d.RunCommands(commands)
 	if err != nil {
 		return "", err
@@ -115,10 +128,30 @@ func (d *DuckDB) QueryFrame(name string, query string, frame *sdk.Frame) (string
 	return res, nil
 }
 
-func (d *DuckDB) QueryFrameInto(name string, query string, frame *sdk.Frame, v any) (any, error) {
-	res, err := d.QueryFrame(name, query, frame)
+func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame, v any) (any, error) {
+	res, err := d.QueryFrames(name, query, frames)
 	if err != nil {
 		return "", err
+	}
+
+	// if v is a frame then return a new frame with the results
+	if f := isFrame(v); f != nil {
+		var data []map[string]any
+		err := json.Unmarshal([]byte(res), &data)
+		if err != nil {
+			return nil, err
+		}
+		resultsFrame, err := framestruct.ToDataFrame(name, data)
+		if err != nil {
+			return nil, err
+		}
+
+		f.Fields = resultsFrame.Fields
+		f.Name = resultsFrame.Name
+		f.Meta = resultsFrame.Meta
+		f.RefID = resultsFrame.RefID
+
+		return resultsFrame, nil
 	}
 
 	err = json.Unmarshal([]byte(res), v)
@@ -148,4 +181,14 @@ func defaultInt(val int, dflt int) int {
 		return dflt
 	}
 	return val
+}
+
+func isFrame(v any) *sdk.Frame {
+	if f, ok := v.(*sdk.Frame); ok {
+		return f
+	}
+	if f, ok := v.(sdk.Frame); ok {
+		return &f
+	}
+	return nil
 }

@@ -16,57 +16,70 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 )
 
-func ToParquet(frame *data.Frame, chunk int) (string, string, error) {
-	schema, err := MarshalArrow(frame)
-	if err != nil {
-		return "", "", err
-	}
+func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
+	dirs := map[string]string{}
+	frameIndex := framesByRef(frames)
+	for _, frameList := range frameIndex {
 
-	data := frameData(frame)
+		dir, err := os.MkdirTemp("", "duck")
+		if err != nil {
+			return nil, err
+		}
 
-	dir, err := os.MkdirTemp("", "duck")
-	if err != nil {
-		return "", "", err
-	}
+		for _, frame := range frameList {
+			dirs[frame.RefID] = dir
 
-	if chunk > 0 {
-		var wg sync.WaitGroup
-		errCh := make(chan error, 10)
-		// write files in chunks
-		chunks := makeChunks(data, chunk)
-		for i, chunk := range chunks {
-			wg.Add(1)
+			schema, err := MarshalArrow(frame)
+			if err != nil {
+				return nil, err
+			}
 
-			go func(chunk FrameData, idx int) error {
-				defer wg.Done()
-				raw, err := json.Marshal(chunk)
-				if err != nil {
-					return err
+			data := frameData(frame)
+
+			if chunk > 0 {
+				var wg sync.WaitGroup
+				errCh := make(chan error, 10)
+				// write files in chunks
+				chunks := makeChunks(data, chunk)
+				for i, chunk := range chunks {
+					wg.Add(1)
+
+					go func(chunk FrameData, idx int) error {
+						defer wg.Done()
+						raw, err := json.Marshal(chunk)
+						if err != nil {
+							return err
+						}
+						name := fmt.Sprintf("%s%d", frame.RefID, idx)
+						_, _, err = write(dir, name, schema, raw)
+						return err
+					}(chunk, i)
 				}
-				name := fmt.Sprintf("%s%d", frame.RefID, idx)
-				_, _, err = write(dir, name, schema, raw)
-				return err
-			}(chunk, i)
+
+				go func() {
+					wg.Wait()
+					close(errCh)
+				}()
+
+				for err := range errCh {
+					return nil, err
+				}
+
+				continue
+			}
+
+			raw, err := json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+
+			_, _, err = write(dir, frame.RefID, schema, raw)
+			if err != nil {
+				return nil, err
+			}
 		}
-
-		go func() {
-			wg.Wait()
-			close(errCh)
-		}()
-
-		for err := range errCh {
-			return "", "", err
-		}
-
-		return dir, "", nil
 	}
-
-	raw, err := json.Marshal(data)
-	if err != nil {
-		return "", "", err
-	}
-
-	return write(dir, frame.RefID, schema, raw)
+	return dirs, nil
 }
 
 func frameData(frame *data.Frame) FrameData {
@@ -130,4 +143,17 @@ func makeChunks(xs FrameData, chunkSize int) []FrameData {
 	}
 	divided[i] = xs[prev:]
 	return divided
+}
+
+func framesByRef(frames []*data.Frame) map[string][]*data.Frame {
+	byRef := map[string][]*data.Frame{}
+	for _, f := range frames {
+		fr := byRef[f.RefID]
+		if fr == nil {
+			refFrames := []*data.Frame{}
+			byRef[f.RefID] = refFrames
+		}
+		byRef[f.RefID] = append(byRef[f.RefID], f)
+	}
+	return byRef
 }

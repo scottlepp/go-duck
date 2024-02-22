@@ -13,13 +13,14 @@ func TestWrite(t *testing.T) {
 	var values = []string{"test"}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
-	dir, file, err := ToParquet(frame, 0)
+	frames := []*data.Frame{frame}
+
+	dir, err := ToParquet(frames, 0)
 	if err != nil {
 		fmt.Println(err.Error())
 		t.Fail()
 	}
 	fmt.Println(dir)
-	fmt.Println(file)
 }
 
 func TestRead(t *testing.T) {

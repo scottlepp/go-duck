@@ -34,6 +34,7 @@
 	var values = []string{"test"}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
+	frames := []*data.Frame{frame}
 
-	res, err := db.QueryFrame("foo", "select * from foo", frame)
+	res, err := db.QueryFrames("foo", "select * from foo", frames)
 ```

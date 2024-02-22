@@ -48,8 +48,9 @@ func TestQueryFrame(t *testing.T) {
 	var values = []string{"test"}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
+	frames := []*data.Frame{frame}
 
-	res, err := db.QueryFrame("foo", "select * from foo", frame)
+	res, err := db.QueryFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Contains(t, res, `[{"value":"test"}]`)
@@ -64,8 +65,9 @@ func TestQueryFrameChunks(t *testing.T) {
 	var values = []string{"test", "test", "test", "test", "test", "test2"}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
+	frames := []*data.Frame{frame}
 
-	res, err := db.QueryFrame("foo", "select * from foo", frame)
+	res, err := db.QueryFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Contains(t, res, `test2`)
@@ -77,12 +79,33 @@ func TestQueryFrameInto(t *testing.T) {
 	var values = []string{"test"}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
+	frames := []*data.Frame{frame}
 
 	model := []map[string]any{}
-	_, err := db.QueryFrameInto("foo", "select * from foo", frame, &model)
+	_, err := db.QueryFramesInto("foo", "select * from foo", frames, &model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 1, len(model))
 	raw := fmt.Sprintf("%s", model)
 	assert.Contains(t, raw, "test")
+}
+
+func TestQueryFrameIntoFrame(t *testing.T) {
+	db := NewInMemoryDB()
+
+	var values = []string{"test"}
+	frame := data.NewFrame("foo", data.NewField("value", nil, values))
+	frame.RefID = "foo"
+
+	var values2 = []string{"foo"}
+	frame2 := data.NewFrame("foo", data.NewField("value", nil, values2))
+	frame2.RefID = "foo"
+
+	frames := []*data.Frame{frame, frame2}
+
+	model := &data.Frame{}
+	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 1, model.Rows())
 }
