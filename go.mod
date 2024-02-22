@@ -1,11 +1,11 @@
 module github.com/scottlepp/go-duck
 
-go 1.21.5
+go 1.21
 
 require (
 	github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
-	github.com/apache/arrow/go/v15 v15.0.0 // indirect
+	github.com/apache/arrow/go/v15 v15.0.0
 	github.com/cheekybits/genny v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
@@ -40,7 +40,6 @@ require (
 
 require (
 	github.com/apache/arrow/go/arrow v0.0.0-20200730104253-651201b0f516
-	github.com/apache/arrow/go/v16 v16.0.0-20240221194630-e198f309c577
 	github.com/apache/thrift v0.17.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/grafana/grafana-plugin-sdk-go v0.212.0
