@@ -1,4 +1,4 @@
-package main
+package duck
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 
 	sdk "github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
-	"github.com/scottlepp/go-duck/pkg/data"
+	"github.com/scottlepp/go-duck/duck/data"
 )
 
 type DuckDB struct {
