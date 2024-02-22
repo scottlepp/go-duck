@@ -92,10 +92,6 @@ func (d *DuckDB) Query(query string) (string, error) {
 	return d.RunCommands([]string{query})
 }
 
-func (c *DuckDB) With(model any) any {
-	return model
-}
-
 // QueryFrame will load a dataframe into a view named RefID, and run the query against that view
 func (d *DuckDB) QueryFrame(name string, query string, frame *sdk.Frame) (string, error) {
 	dir, _, err := data.ToParquet(frame, d.Chunk)
