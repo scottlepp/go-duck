@@ -1,4 +1,4 @@
-# Go wrapper for DuckDB CLI
+# Go wrapper for [DuckDB CLI](https://duckdb.org/docs/api/cli/overview)
 * Doesn't require CGO.
 * Requires duckdb cli to be in the path.
 
