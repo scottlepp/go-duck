@@ -20,6 +20,16 @@ import (
 func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 	dirs := map[string]string{}
 	frameIndex := framesByRef(frames)
+
+	// TODO - appending lables to fields for now
+	// need to return multiple frames instead
+	for _, f := range frames {
+		for _, fld := range f.Fields {
+			lbls := fld.Labels.String()
+			fld.Name = fmt.Sprintf("%s %s", fld.Name, lbls)
+		}
+	}
+
 	for _, frameList := range frameIndex {
 
 		dir, err := os.MkdirTemp("", "duck")

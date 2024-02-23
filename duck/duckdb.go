@@ -195,28 +195,31 @@ func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) 
 	f.Meta = resultsFrame.Meta
 	f.RefID = resultsFrame.RefID
 
-	applyLabels(*resultsFrame, frames)
+	// TODO - appending to field names for now
+	// applyLabels(*resultsFrame, frames)
 
 	return resultsFrame, nil
 }
 
-func applyLabels(resultsFrame sdk.Frame, sourceFrames []*sdk.Frame) {
-	for _, fld := range resultsFrame.Fields {
-		for _, f := range sourceFrames {
-			srcField := find(f, fld)
-			if srcField != nil {
-				fld.Labels = srcField.Labels
-				break
-			}
-		}
-	}
-}
+// TODO
 
-func find(f *sdk.Frame, fld *sdk.Field) *sdk.Field {
-	for _, sfld := range f.Fields {
-		if sfld.Name == fld.Name {
-			return sfld
-		}
-	}
-	return nil
-}
+// func applyLabels(resultsFrame sdk.Frame, sourceFrames []*sdk.Frame) {
+// 	for _, fld := range resultsFrame.Fields {
+// 		for _, f := range sourceFrames {
+// 			srcField := find(f, fld)
+// 			if srcField != nil {
+// 				fld.Labels = srcField.Labels
+// 				break
+// 			}
+// 		}
+// 	}
+// }
+
+// func find(f *sdk.Frame, fld *sdk.Field) *sdk.Field {
+// 	for _, sfld := range f.Fields {
+// 		if sfld.Name == fld.Name {
+// 			return sfld
+// 		}
+// 	}
+// 	return nil
+// }
