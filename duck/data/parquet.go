@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/apache/arrow/go/arrow/memory"
 	"github.com/apache/arrow/go/v15/arrow"
@@ -26,7 +27,8 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 			return nil, err
 		}
 
-		for _, frame := range frameList {
+		mergeFrames(frameList)
+		for i, frame := range frameList {
 			dirs[frame.RefID] = dir
 
 			schema, err := MarshalArrow(frame)
@@ -73,7 +75,8 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 				return nil, err
 			}
 
-			_, _, err = write(dir, frame.RefID, schema, raw)
+			name := fmt.Sprintf("%s%d", frame.RefID, i)
+			_, _, err = write(dir, name, schema, raw)
 			if err != nil {
 				return nil, err
 			}
@@ -105,7 +108,9 @@ func write(dir string, name string, schema *arrow.Schema, jsonData []byte) (stri
 
 	writerProps := parquet.NewWriterProperties()
 	writer, err := pqarrow.NewFileWriter(schema, output, writerProps, pqarrow.DefaultWriterProps())
-
+	if err != nil {
+		return "", "", err
+	}
 	r := bytes.NewReader(jsonData)
 	record, _, err := array.RecordFromJSON(memory.DefaultAllocator, schema, r)
 	if err != nil {
@@ -156,4 +161,59 @@ func framesByRef(frames []*data.Frame) map[string][]*data.Frame {
 		byRef[f.RefID] = append(byRef[f.RefID], f)
 	}
 	return byRef
+}
+
+func mergeFrames(frames []*data.Frame) {
+	fields := map[string]*data.Field{}
+	for _, f := range frames {
+		for _, fld := range f.Fields {
+			fields[fld.Name] = fld
+		}
+	}
+	for _, fld := range fields {
+		for _, f := range frames {
+			found := false
+			for _, fld2 := range f.Fields {
+				if fld2.Name == fld.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				makeArray := maker[fld.Type()]
+				arr := makeArray(f.Rows())
+				nullField := data.NewField(fld.Name, fld.Labels, arr)
+				f.Fields = append(f.Fields, nullField)
+			}
+		}
+	}
+}
+
+var maker = map[data.FieldType]func(length int) any{
+	data.FieldTypeFloat64:         func(length int) any { return makeArray[float64](length) },
+	data.FieldTypeFloat32:         func(length int) any { return makeArray[float32](length) },
+	data.FieldTypeInt16:           func(length int) any { return makeArray[int16](length) },
+	data.FieldTypeInt64:           func(length int) any { return makeArray[int64](length) },
+	data.FieldTypeInt8:            func(length int) any { return makeArray[int8](length) },
+	data.FieldTypeUint8:           func(length int) any { return makeArray[uint8](length) },
+	data.FieldTypeUint16:          func(length int) any { return makeArray[uint16](length) },
+	data.FieldTypeUint32:          func(length int) any { return makeArray[uint32](length) },
+	data.FieldTypeUint64:          func(length int) any { return makeArray[uint64](length) },
+	data.FieldTypeNullableFloat64: func(length int) any { return makeArray[*float64](length) },
+	data.FieldTypeNullableFloat32: func(length int) any { return makeArray[*float32](length) },
+	data.FieldTypeNullableInt16:   func(length int) any { return makeArray[*int16](length) },
+	data.FieldTypeNullableInt64:   func(length int) any { return makeArray[*int64](length) },
+	data.FieldTypeNullableInt8:    func(length int) any { return makeArray[*int8](length) },
+	data.FieldTypeNullableUint8:   func(length int) any { return makeArray[*uint8](length) },
+	data.FieldTypeNullableUint16:  func(length int) any { return makeArray[*uint16](length) },
+	data.FieldTypeNullableUint32:  func(length int) any { return makeArray[*uint32](length) },
+	data.FieldTypeNullableUint64:  func(length int) any { return makeArray[*uint64](length) },
+	data.FieldTypeString:          func(length int) any { return makeArray[string](length) },
+	data.FieldTypeNullableString:  func(length int) any { return makeArray[*string](length) },
+	data.FieldTypeTime:            func(length int) any { return makeArray[time.Time](length) },
+	data.FieldTypeNullableTime:    func(length int) any { return makeArray[*time.Time](length) },
+}
+
+func makeArray[T any](length int) []T {
+	return make([]T, length)
 }
