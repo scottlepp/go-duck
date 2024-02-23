@@ -16,7 +16,7 @@ require (
 	github.com/klauspost/asmfmt v1.3.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/mattetti/filebuffer v1.0.1 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/mattn/go-runewidth v0.0.10 // indirect
 	github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 // indirect
 	github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -41,6 +41,7 @@ require (
 require (
 	github.com/apache/arrow/go/arrow v0.0.0-20200730104253-651201b0f516
 	github.com/apache/thrift v0.17.0 // indirect
+	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/grafana/grafana-plugin-sdk-go v0.212.0
 	github.com/klauspost/compress v1.16.7 // indirect
@@ -48,3 +49,5 @@ require (
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 )
+
+require github.com/rivo/uniseg v0.1.0 // indirect

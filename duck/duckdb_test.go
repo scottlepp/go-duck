@@ -3,6 +3,7 @@ package duck
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/stretchr/testify/assert"
@@ -127,7 +128,7 @@ func TestMultiFrame(t *testing.T) {
 	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
 	assert.Nil(t, err)
 
-	assert.Equal(t, 1, model.Rows())
+	assert.Equal(t, 2, model.Rows())
 	txt, err := model.StringTable(-1, -1)
 	assert.Nil(t, err)
 
@@ -154,9 +155,30 @@ func TestMultiFrame2(t *testing.T) {
 	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
 	assert.Nil(t, err)
 
+	assert.Equal(t, 2, model.Rows())
+	txt, err := model.StringTable(-1, -1)
+	assert.Nil(t, err)
+
+	fmt.Printf("GOT: %s", txt)
+}
+
+func TestTimestamps(t *testing.T) {
+	db := NewInMemoryDB()
+
+	var values = []time.Time{time.Now()}
+	frame := data.NewFrame("foo", data.NewField("value", nil, values))
+	frame.RefID = "foo"
+
+	frames := []*data.Frame{frame}
+
+	model := &data.Frame{}
+	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	assert.Nil(t, err)
+
 	assert.Equal(t, 1, model.Rows())
 	txt, err := model.StringTable(-1, -1)
 	assert.Nil(t, err)
 
 	fmt.Printf("GOT: %s", txt)
+	assert.Contains(t, txt, "Type: []*time.Time")
 }

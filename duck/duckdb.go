@@ -136,22 +136,7 @@ func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame,
 
 	// if v is a frame then return a new frame with the results
 	if f := isFrame(v); f != nil {
-		var data []map[string]any
-		err := json.Unmarshal([]byte(res), &data)
-		if err != nil {
-			return nil, err
-		}
-		resultsFrame, err := framestruct.ToDataFrame(name, data)
-		if err != nil {
-			return nil, err
-		}
-
-		f.Fields = resultsFrame.Fields
-		f.Name = resultsFrame.Name
-		f.Meta = resultsFrame.Meta
-		f.RefID = resultsFrame.RefID
-
-		return resultsFrame, nil
+		return resultsToFrame(name, res, f, frames)
 	}
 
 	err = json.Unmarshal([]byte(res), v)
@@ -191,4 +176,24 @@ func isFrame(v any) *sdk.Frame {
 		return &f
 	}
 	return nil
+}
+
+func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) (*sdk.Frame, error) {
+	var results []map[string]any
+	err := json.Unmarshal([]byte(res), &results)
+	if err != nil {
+		return nil, err
+	}
+	converters := data.Converters(frames)
+	resultsFrame, err := framestruct.ToDataFrame(name, results, converters...)
+	if err != nil {
+		return nil, err
+	}
+
+	f.Fields = resultsFrame.Fields
+	f.Name = resultsFrame.Name
+	f.Meta = resultsFrame.Meta
+	f.RefID = resultsFrame.RefID
+
+	return resultsFrame, nil
 }
