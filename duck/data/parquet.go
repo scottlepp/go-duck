@@ -25,8 +25,10 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 	// need to return multiple frames instead
 	for _, f := range frames {
 		for _, fld := range f.Fields {
-			lbls := fld.Labels.String()
-			fld.Name = fmt.Sprintf("%s %s", fld.Name, lbls)
+			if len(fld.Labels) > 0 {
+				lbls := fld.Labels.String()
+				fld.Name = fmt.Sprintf("%s %s", fld.Name, lbls)
+			}
 		}
 	}
 

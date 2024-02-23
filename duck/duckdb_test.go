@@ -229,6 +229,12 @@ func TestLabels(t *testing.T) {
 func TestLabelsMultiFrame(t *testing.T) {
 	db := NewInMemoryDB()
 
+	tt := "2024-02-23 09:01:54"
+	dd, err := dateparse.ParseAny(tt)
+	assert.Nil(t, err)
+
+	var timeValues = []time.Time{dd}
+
 	f := new(float64)
 	*f = 12345
 
@@ -236,20 +242,21 @@ func TestLabelsMultiFrame(t *testing.T) {
 	labels := map[string]string{
 		"server": "A",
 	}
-	frame := data.NewFrame("foo", data.NewField("value", labels, values))
+	frame := data.NewFrame("foo", data.NewField("timestamp", nil, timeValues), data.NewField("value", labels, values))
 	frame.RefID = "foo"
 
 	var values2 = []*float64{f}
 	labels2 := map[string]string{
 		"server": "B",
 	}
-	frame2 := data.NewFrame("foo", data.NewField("value", labels2, values2))
+	frame2 := data.NewFrame("foo", data.NewField("timestamp", nil, timeValues), data.NewField("value", labels2, values2))
 	frame2.RefID = "foo"
 
 	frames := []*data.Frame{frame, frame2}
 
+	// TODO - ordering is broken!
 	model := &data.Frame{}
-	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	_, err = db.QueryFramesInto("foo", "select * from foo order by 'timestamp'", frames, model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
