@@ -187,3 +187,39 @@ func TestTimestamps(t *testing.T) {
 	fmt.Printf("GOT: %s", txt)
 	assert.Contains(t, txt, "Type: []*time.Time")
 }
+
+func TestLabels(t *testing.T) {
+	db := NewInMemoryDB()
+
+	f := new(float64)
+	*f = 12345
+
+	var values = []*float64{f}
+	labels := map[string]string{
+		"server": "A",
+	}
+	frame := data.NewFrame("foo", data.NewField("value1", labels, values))
+	frame.RefID = "foo"
+
+	var values2 = []*float64{f}
+	labels2 := map[string]string{
+		"server": "B",
+	}
+	frame2 := data.NewFrame("foo", data.NewField("value2", labels2, values2))
+	frame2.RefID = "foo"
+
+	frames := []*data.Frame{frame, frame2}
+
+	model := &data.Frame{}
+	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 2, model.Rows())
+	txt, err := model.StringTable(-1, -1)
+	assert.Nil(t, err)
+
+	fmt.Printf("GOT: %s", txt)
+
+	assert.Contains(t, txt, "server=A")
+	assert.Contains(t, txt, "server=B")
+}
