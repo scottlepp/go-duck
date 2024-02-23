@@ -3,7 +3,6 @@ package data
 import (
 	"time"
 
-	"github.com/araddon/dateparse"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
 )
@@ -41,10 +40,12 @@ var timeConverter = func(i interface{}) (interface{}, error) {
 	return nil, nil
 }
 
+const layout = "2006-01-02 15:04:05-07"
+
 func parseDate(s string) (time.Time, error) {
-	t, err := dateparse.ParseAny(s)
+	t, err := time.Parse(layout, s)
 	if err != nil {
 		return t, err
 	}
-	return t, nil
+	return t.UTC(), nil
 }

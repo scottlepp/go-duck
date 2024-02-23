@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/araddon/dateparse"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/stretchr/testify/assert"
 )
@@ -165,14 +166,18 @@ func TestMultiFrame2(t *testing.T) {
 func TestTimestamps(t *testing.T) {
 	db := NewInMemoryDB()
 
-	var values = []time.Time{time.Now()}
+	tt := "2024-02-23 09:01:54"
+	dd, err := dateparse.ParseAny(tt)
+	assert.Nil(t, err)
+
+	var values = []time.Time{dd}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
 
 	frames := []*data.Frame{frame}
 
 	model := &data.Frame{}
-	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	_, err = db.QueryFramesInto("foo", "select * from foo", frames, model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 1, model.Rows())

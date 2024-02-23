@@ -35,7 +35,7 @@ func NewInMemoryDB(opts ...Opts) DuckDB {
 
 // NewDuckDB creates a new DuckDB
 func NewDuckDB(name string, opts ...Opts) DuckDB {
-	if opts != nil && len(opts) > 0 {
+	if len(opts) > 0 {
 		return DuckDB{
 			Name:   name,
 			Mode:   defaultString(opts[0].Mode, "json"),
