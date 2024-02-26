@@ -31,10 +31,10 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 	// 		}
 	// 	}
 	// }
-	handleDuplicateFields(frames)
-	labelsToFields(frames)
 
 	for _, frameList := range frameIndex {
+
+		labelsToFields(frameList)
 
 		dir, err := os.MkdirTemp("", "duck")
 		if err != nil {
@@ -254,28 +254,4 @@ func newField(name string, val string, size int) *data.Field {
 		newField.Set(i, val)
 	}
 	return newField
-}
-
-// wide frames - duplicate fields with different labels
-// use the labels in the field name to avoid create table error with duplicate field
-func handleDuplicateFields(frames []*data.Frame) {
-	for _, f := range frames {
-		dups := map[string]bool{}
-		fieldIndex := map[string]*data.Field{}
-		for _, fld := range f.Fields {
-			if fieldIndex[fld.Name] != nil {
-				dups[fld.Name] = true
-			}
-			fieldIndex[fld.Name] = fld
-		}
-		for _, fld := range f.Fields {
-			if dups[fld.Name] {
-				if len(fld.Labels) > 0 {
-					lbls := fld.Labels.String()
-					fld.Name = fmt.Sprintf("%s %s", fld.Name, lbls)
-					fld.Labels = nil
-				}
-			}
-		}
-	}
 }
