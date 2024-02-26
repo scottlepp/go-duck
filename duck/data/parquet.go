@@ -23,14 +23,15 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 
 	// TODO - appending lables to fields for now
 	// need to return multiple frames instead
-	for _, f := range frames {
-		for _, fld := range f.Fields {
-			if len(fld.Labels) > 0 {
-				lbls := fld.Labels.String()
-				fld.Name = fmt.Sprintf("%s %s", fld.Name, lbls)
-			}
-		}
-	}
+	// for _, f := range frames {
+	// 	for _, fld := range f.Fields {
+	// 		if len(fld.Labels) > 0 {
+	// 			lbls := fld.Labels.String()
+	// 			fld.Name = fmt.Sprintf("%s %s", fld.Name, lbls)
+	// 		}
+	// 	}
+	// }
+	labelsToFields(frames)
 
 	for _, frameList := range frameIndex {
 
@@ -228,4 +229,28 @@ var maker = map[data.FieldType]func(length int) any{
 
 func makeArray[T any](length int) []T {
 	return make([]T, length)
+}
+
+func labelsToFields(frames []*data.Frame) {
+	for _, f := range frames {
+		fields := []*data.Field{}
+		for _, fld := range f.Fields {
+			if fld.Labels != nil {
+				for lbl, val := range fld.Labels {
+					newFld := newField(lbl, val, f.Rows())
+					fields = append(fields, newFld)
+				}
+			}
+		}
+		f.Fields = append(f.Fields, fields...)
+	}
+}
+
+func newField(name string, val string, size int) *data.Field {
+	values := make([]string, size)
+	newField := data.NewField(name, nil, values)
+	for i := 0; i < size; i++ {
+		newField.Set(i, val)
+	}
+	return newField
 }

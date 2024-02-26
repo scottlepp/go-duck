@@ -95,21 +95,26 @@ func TestQueryFrameInto(t *testing.T) {
 func TestQueryFrameIntoFrame(t *testing.T) {
 	db := NewInMemoryDB()
 
-	var values = []string{"test"}
+	var values = []string{"2024-02-23 09:01:54"}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
 
-	var values2 = []string{"foo"}
+	var values2 = []string{"2024-02-23 09:02:54"}
 	frame2 := data.NewFrame("foo", data.NewField("value", nil, values2))
 	frame2.RefID = "foo"
 
 	frames := []*data.Frame{frame, frame2}
 
 	model := &data.Frame{}
-	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	_, err := db.QueryFramesInto("foo", "select * from foo order by value desc", frames, model)
 	assert.Nil(t, err)
 
-	assert.Equal(t, 1, model.Rows())
+	assert.Equal(t, 2, model.Rows())
+
+	txt, err := model.StringTable(-1, -1)
+	assert.Nil(t, err)
+
+	fmt.Printf("GOT: %s", txt)
 }
 
 func TestMultiFrame(t *testing.T) {
@@ -220,8 +225,9 @@ func TestLabels(t *testing.T) {
 
 	fmt.Printf("GOT: %s", txt)
 
-	assert.Contains(t, txt, "server=A")
-	assert.Contains(t, txt, "server=B")
+	assert.Contains(t, txt, "server")
+	assert.Contains(t, txt, "A")
+	assert.Contains(t, txt, "B")
 }
 
 // TODO - neeed to return 2 frames here
@@ -233,19 +239,23 @@ func TestLabelsMultiFrame(t *testing.T) {
 	dd, err := dateparse.ParseAny(tt)
 	assert.Nil(t, err)
 
-	var timeValues = []time.Time{dd}
+	ttt := "2024-02-23 09:02:54"
+	ddd, err := dateparse.ParseAny(ttt)
+	assert.Nil(t, err)
+
+	var timeValues = []time.Time{dd, ddd}
 
 	f := new(float64)
 	*f = 12345
 
-	var values = []*float64{f}
+	var values = []*float64{f, f}
 	labels := map[string]string{
 		"server": "A",
 	}
 	frame := data.NewFrame("foo", data.NewField("timestamp", nil, timeValues), data.NewField("value", labels, values))
 	frame.RefID = "foo"
 
-	var values2 = []*float64{f}
+	var values2 = []*float64{f, f}
 	labels2 := map[string]string{
 		"server": "B",
 	}
@@ -256,15 +266,16 @@ func TestLabelsMultiFrame(t *testing.T) {
 
 	// TODO - ordering is broken!
 	model := &data.Frame{}
-	_, err = db.QueryFramesInto("foo", "select * from foo order by 'timestamp'", frames, model)
+	_, err = db.QueryFramesInto("foo", "select * from foo order by timestamp desc", frames, model)
 	assert.Nil(t, err)
 
-	assert.Equal(t, 2, model.Rows())
+	assert.Equal(t, 4, model.Rows())
 	txt, err := model.StringTable(-1, -1)
 	assert.Nil(t, err)
 
 	fmt.Printf("GOT: %s", txt)
 
-	assert.Contains(t, txt, "server=A")
-	assert.Contains(t, txt, "server=B")
+	assert.Contains(t, txt, "server")
+	assert.Contains(t, txt, "A")
+	assert.Contains(t, txt, "B")
 }
