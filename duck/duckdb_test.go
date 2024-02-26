@@ -279,3 +279,54 @@ func TestLabelsMultiFrame(t *testing.T) {
 	assert.Contains(t, txt, "A")
 	assert.Contains(t, txt, "B")
 }
+
+func TestWideFrameWithDuplicateFields(t *testing.T) {
+	db := NewInMemoryDB()
+
+	tt := "2024-02-23 09:01:54"
+	dd, err := dateparse.ParseAny(tt)
+	assert.Nil(t, err)
+
+	ttt := "2024-02-23 09:02:54"
+	ddd, err := dateparse.ParseAny(ttt)
+	assert.Nil(t, err)
+
+	var timeValues = []time.Time{dd, ddd}
+
+	f := new(float64)
+	*f = 12345
+
+	var values = []*float64{f, f}
+	labels := map[string]string{
+		"server": "A",
+	}
+
+	var values2 = []*float64{f, f}
+	labels2 := map[string]string{
+		"server": "B",
+	}
+	frame := data.NewFrame("foo",
+		data.NewField("timestamp", nil, timeValues),
+		data.NewField("value", labels, values),
+		data.NewField("value", labels2, values2),
+	)
+
+	frame.RefID = "foo"
+
+	frames := []*data.Frame{frame}
+
+	// TODO - ordering is broken!
+	model := &data.Frame{}
+	_, err = db.QueryFramesInto("foo", "select * from foo order by timestamp desc", frames, model)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 2, model.Rows())
+	txt, err := model.StringTable(-1, -1)
+	assert.Nil(t, err)
+
+	fmt.Printf("GOT: %s", txt)
+
+	assert.Contains(t, txt, "server")
+	assert.Contains(t, txt, "A")
+	assert.Contains(t, txt, "B")
+}
