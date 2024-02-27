@@ -128,22 +128,13 @@ func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (st
 	return res, nil
 }
 
-func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame, v any) (any, error) {
+func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame, f *sdk.Frame) (*sdk.Frame, error) {
 	res, err := d.QueryFrames(name, query, frames)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	// if v is a frame then return a new frame with the results
-	if f := isFrame(v); f != nil {
-		return resultsToFrame(name, res, f, frames)
-	}
-
-	err = json.Unmarshal([]byte(res), v)
-	if err != nil {
-		return "", err
-	}
-	return v, nil
+	return resultsToFrame(name, res, f, frames)
 }
 
 // Destroy will remove database files created by duckdb
@@ -166,16 +157,6 @@ func defaultInt(val int, dflt int) int {
 		return dflt
 	}
 	return val
-}
-
-func isFrame(v any) *sdk.Frame {
-	if f, ok := v.(*sdk.Frame); ok {
-		return f
-	}
-	if f, ok := v.(sdk.Frame); ok {
-		return &f
-	}
-	return nil
 }
 
 func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) (*sdk.Frame, error) {
