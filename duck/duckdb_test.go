@@ -89,7 +89,7 @@ func TestQueryFrameIntoFrame(t *testing.T) {
 	frames := []*data.Frame{frame, frame2}
 
 	model := &data.Frame{}
-	_, err := db.QueryFramesInto("foo", "select * from foo order by value desc", frames, model)
+	err := db.QueryFramesInto("foo", "select * from foo order by value desc", frames, model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
@@ -114,7 +114,7 @@ func TestMultiFrame(t *testing.T) {
 	frames := []*data.Frame{frame, frame2}
 
 	model := &data.Frame{}
-	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	err := db.QueryFramesInto("foo", "select * from foo", frames, model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
@@ -141,7 +141,7 @@ func TestMultiFrame2(t *testing.T) {
 	frames := []*data.Frame{frame, frame2}
 
 	model := &data.Frame{}
-	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	err := db.QueryFramesInto("foo", "select * from foo", frames, model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
@@ -165,7 +165,7 @@ func TestTimestamps(t *testing.T) {
 	frames := []*data.Frame{frame}
 
 	model := &data.Frame{}
-	_, err = db.QueryFramesInto("foo", "select * from foo", frames, model)
+	err = db.QueryFramesInto("foo", "select * from foo", frames, model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 1, model.Rows())
@@ -199,7 +199,7 @@ func TestLabels(t *testing.T) {
 	frames := []*data.Frame{frame, frame2}
 
 	model := &data.Frame{}
-	_, err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	err := db.QueryFramesInto("foo", "select * from foo", frames, model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
@@ -249,7 +249,7 @@ func TestLabelsMultiFrame(t *testing.T) {
 
 	// TODO - ordering is broken!
 	model := &data.Frame{}
-	_, err = db.QueryFramesInto("foo", "select * from foo order by timestamp desc", frames, model)
+	err = db.QueryFramesInto("foo", "select * from foo order by timestamp desc", frames, model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 4, model.Rows())
@@ -300,7 +300,7 @@ func TestWideFrameWithDuplicateFields(t *testing.T) {
 
 	// TODO - ordering is broken!
 	model := &data.Frame{}
-	_, err = db.QueryFramesInto("foo", "select * from foo order by timestamp desc", frames, model)
+	err = db.QueryFramesInto("foo", "select * from foo order by timestamp desc", frames, model)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())

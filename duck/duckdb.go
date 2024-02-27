@@ -128,10 +128,10 @@ func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (st
 	return res, nil
 }
 
-func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame, f *sdk.Frame) (*sdk.Frame, error) {
+func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame, f *sdk.Frame) error {
 	res, err := d.QueryFrames(name, query, frames)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	return resultsToFrame(name, res, f, frames)
@@ -159,16 +159,16 @@ func defaultInt(val int, dflt int) int {
 	return val
 }
 
-func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) (*sdk.Frame, error) {
+func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) error {
 	var results []map[string]any
 	err := json.Unmarshal([]byte(res), &results)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	converters := data.Converters(frames)
 	resultsFrame, err := framestruct.ToDataFrame(name, results, converters...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	f.Fields = resultsFrame.Fields
@@ -179,7 +179,7 @@ func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) 
 	// TODO - appending to field names for now
 	// applyLabels(*resultsFrame, frames)
 
-	return resultsFrame, nil
+	return nil
 }
 
 // TODO
