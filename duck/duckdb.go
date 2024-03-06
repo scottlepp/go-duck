@@ -160,6 +160,9 @@ func defaultInt(val int, dflt int) int {
 }
 
 func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) error {
+	if res == "" {
+		return nil
+	}
 	var results []map[string]any
 	err := json.Unmarshal([]byte(res), &results)
 	if err != nil {
