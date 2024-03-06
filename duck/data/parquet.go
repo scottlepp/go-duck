@@ -172,9 +172,16 @@ func framesByRef(frames []*data.Frame) map[string][]*data.Frame {
 			refFrames := []*data.Frame{}
 			byRef[f.RefID] = refFrames
 		}
-		byRef[f.RefID] = append(byRef[f.RefID], f)
+		byRef[f.RefID] = append(byRef[f.RefID], clone(f))
 	}
 	return byRef
+}
+
+func clone(f *data.Frame) *data.Frame {
+	copy := data.NewFrame(f.Name, f.Fields...)
+	copy.RefID = f.RefID
+	copy.Meta = f.Meta
+	return copy
 }
 
 func mergeFrames(frames []*data.Frame) {

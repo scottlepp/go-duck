@@ -12,7 +12,6 @@ import (
 const metadataKeyName = "name"     // standard property
 const metadataKeyConfig = "config" // FieldConfig serialized as JSON
 const metadataKeyLabels = "labels" // labels serialized as JSON
-const metadataKeyTSType = "tstype" // typescript type
 const metadataKeyRefID = "refId"   // added to the table metadata
 
 // MarshalArrow converts the Frame to an arrow table and returns a byte
