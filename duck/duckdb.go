@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	sdk "github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
@@ -17,6 +18,7 @@ type DuckDB struct {
 	Name   string
 	Mode   string
 	Format string
+	Path   string
 	Chunk  int
 }
 
@@ -24,6 +26,7 @@ type Opts struct {
 	Mode   string
 	Format string
 	Chunk  int
+	Path   string
 }
 
 const newline = "\n"
@@ -40,6 +43,7 @@ func NewDuckDB(name string, opts ...Opts) DuckDB {
 			Name:   name,
 			Mode:   defaultString(opts[0].Mode, "json"),
 			Format: defaultString(opts[0].Format, "parquet"),
+			Path:   defaultString(opts[0].Path, "usr/local/bin/"),
 			Chunk:  defaultInt(opts[0].Chunk, 0),
 		}
 	}
@@ -47,6 +51,7 @@ func NewDuckDB(name string, opts ...Opts) DuckDB {
 		Name:   name,
 		Mode:   "json",
 		Format: "parquet",
+		Path:   "usr/local/bin/",
 		Chunk:  0,
 	}
 }
@@ -63,7 +68,8 @@ func (d *DuckDB) RunCommands(commands []string) (string, error) {
 		b.Write([]byte(cmd))
 	}
 
-	cmd := exec.Command("duckdb", d.Name)
+	cli := fmt.Sprintf("%sduckdb", strings.TrimSpace(d.Path))
+	cmd := exec.Command(cli, d.Name)
 	cmd.Stdin = &b
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
