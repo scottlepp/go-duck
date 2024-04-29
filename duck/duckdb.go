@@ -43,7 +43,7 @@ func NewDuckDB(name string, opts ...Opts) DuckDB {
 			Name:   name,
 			Mode:   defaultString(opts[0].Mode, "json"),
 			Format: defaultString(opts[0].Format, "parquet"),
-			Path:   defaultString(opts[0].Path, "usr/local/bin/"),
+			Path:   defaultString(opts[0].Path, "/usr/local/bin/"),
 			Chunk:  defaultInt(opts[0].Chunk, 0),
 		}
 	}
@@ -51,7 +51,7 @@ func NewDuckDB(name string, opts ...Opts) DuckDB {
 		Name:   name,
 		Mode:   "json",
 		Format: "parquet",
-		Path:   "usr/local/bin/",
+		Path:   "/usr/local/bin/",
 		Chunk:  0,
 	}
 }
