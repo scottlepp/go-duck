@@ -52,6 +52,7 @@ func buildArrowFields(f *data.Frame) ([]arrow.Field, error) {
 			}
 		}
 
+		name := getFieldName(field)
 		if field.Config != nil {
 			str, err := toJSONString(field.Config)
 			if err != nil {
@@ -61,7 +62,7 @@ func buildArrowFields(f *data.Frame) ([]arrow.Field, error) {
 		}
 
 		arrowFields[i] = arrow.Field{
-			Name:     field.Name,
+			Name:     name,
 			Type:     t,
 			Metadata: arrow.MetadataFrom(fieldMeta),
 			Nullable: nullable,
@@ -179,4 +180,11 @@ func toJSONString(val interface{}) (string, error) {
 		return "", err
 	}
 	return string(b), nil
+}
+
+func getFieldName(field *data.Field) string {
+	if field.Config != nil && field.Config.DisplayName != "" {
+		return field.Config.DisplayName
+	}
+	return field.Name
 }
