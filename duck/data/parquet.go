@@ -104,7 +104,8 @@ func frameData(frame *data.Frame) FrameData {
 	for rowIdx := 0; rowIdx < frame.Rows(); rowIdx++ {
 		row := map[string]any{}
 		for colIdx, f := range frame.Fields {
-			row[f.Name] = frame.At(colIdx, rowIdx)
+			name := getFieldName(f)
+			row[name] = frame.At(colIdx, rowIdx)
 		}
 		data = append(data, row)
 	}
