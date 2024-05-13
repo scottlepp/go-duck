@@ -1,3 +1,6 @@
+![image](https://github.com/scottlepp/go-duck/assets/6108819/78f3fe95-227a-4b7f-99d5-81d979e5fc2e)
+
+
 # Go wrapper for [DuckDB CLI](https://duckdb.org/docs/api/cli/overview)
 * Doesn't require CGO.
 * Requires duckdb cli to be in the path.
