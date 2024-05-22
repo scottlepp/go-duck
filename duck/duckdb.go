@@ -9,10 +9,13 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	sdk "github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
 	"github.com/scottlepp/go-duck/duck/data"
 )
+
+var logger = log.DefaultLogger
 
 type DuckDB struct {
 	Name   string
@@ -77,9 +80,11 @@ func (d *DuckDB) RunCommands(commands []string) (string, error) {
 	err := cmd.Run()
 	if err != nil {
 		message := err.Error() + stderr.String()
+		logger.Error("error running command", "cmd", b.String(), "message", message, "error", err)
 		return "", errors.New(message)
 	}
 	if stderr.String() != "" {
+		logger.Error("error running command", "cmd", b.String(), "error", stderr.String())
 		return "", errors.New(stderr.String())
 	}
 
@@ -103,6 +108,7 @@ func (d *DuckDB) Query(query string) (string, error) {
 func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (string, error) {
 	dirs, err := data.ToParquet(frames, d.Chunk)
 	if err != nil {
+		logger.Error("error converting to parquet", "error", err)
 		return "", err
 	}
 
@@ -110,18 +116,20 @@ func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (st
 		for _, dir := range dirs {
 			err := os.RemoveAll(dir)
 			if err != nil {
-				fmt.Println("failed to remove parquet files")
+				logger.Error("failed to remove parquet files", "error", err)
 			}
 		}
 	}()
 
 	commands := []string{}
 	created := map[string]bool{}
+	logger.Debug("starting to create views from frames", "frames", len(frames))
 	for _, frame := range frames {
 		if created[frame.RefID] {
 			continue
 		}
 		cmd := fmt.Sprintf("CREATE VIEW %s AS (SELECT * from '%s/*.parquet');", frame.RefID, dirs[frame.RefID])
+		logger.Debug("creating view", "cmd", cmd)
 		commands = append(commands, cmd)
 		created[frame.RefID] = true
 	}
@@ -129,6 +137,7 @@ func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (st
 	commands = append(commands, query)
 	res, err := d.RunCommands(commands)
 	if err != nil {
+		logger.Error("error running commands", "error", err)
 		return "", err
 	}
 	return res, nil
@@ -172,11 +181,13 @@ func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) 
 	var results []map[string]any
 	err := json.Unmarshal([]byte(res), &results)
 	if err != nil {
+		logger.Error("error unmarshalling results", "error", err)
 		return err
 	}
 	converters := data.Converters(frames)
 	resultsFrame, err := framestruct.ToDataFrame(name, results, converters...)
 	if err != nil {
+		logger.Error("error converting results to frame", "error", err)
 		return err
 	}
 

@@ -19,16 +19,19 @@ const metadataKeyRefID = "refId"   // added to the table metadata
 // All fields of a Frame must be of the same length or an error is returned.
 func MarshalArrow(f *data.Frame) (*arrow.Schema, error) {
 	if _, err := f.RowLen(); err != nil {
+		logger.Error("failed to get row length", "error", err)
 		return nil, err
 	}
 
 	arrowFields, err := buildArrowFields(f)
 	if err != nil {
+		logger.Error("failed to build arrow fields", "error", err)
 		return nil, err
 	}
 
 	schema, err := buildArrowSchema(f, arrowFields)
 	if err != nil {
+		logger.Error("failed to build arrow schema", "error", err)
 		return nil, err
 	}
 
@@ -48,6 +51,7 @@ func buildArrowFields(f *data.Frame) ([]arrow.Field, error) {
 
 		if field.Labels != nil {
 			if fieldMeta[metadataKeyLabels], err = toJSONString(field.Labels); err != nil {
+				logger.Error("failed to serialize labels", "error", err)
 				return nil, err
 			}
 		}
@@ -56,6 +60,7 @@ func buildArrowFields(f *data.Frame) ([]arrow.Field, error) {
 		if field.Config != nil {
 			str, err := toJSONString(field.Config)
 			if err != nil {
+				logger.Error("failed to serialize field config", "error", err)
 				return nil, err
 			}
 			fieldMeta[metadataKeyConfig] = str
@@ -81,6 +86,7 @@ func buildArrowSchema(f *data.Frame, fs []arrow.Field) (*arrow.Schema, error) {
 	if f.Meta != nil {
 		str, err := toJSONString(f.Meta)
 		if err != nil {
+			logger.Error("failed to serialize frame meta", "error", err)
 			return nil, err
 		}
 		tableMetaMap["meta"] = str
@@ -168,6 +174,7 @@ func fieldToArrow(f *data.Field) (arrow.DataType, bool, error) {
 		return &arrow.BinaryType{}, true, nil
 
 	default:
+		logger.Error("unsupported type for conversion to arrow", "type", f.Type())
 		return nil, false, fmt.Errorf("unsupported type for conversion to arrow: %T", f.Type())
 	}
 }
@@ -177,6 +184,7 @@ func fieldToArrow(f *data.Field) (arrow.DataType, bool, error) {
 func toJSONString(val interface{}) (string, error) {
 	b, err := json.Marshal(val)
 	if err != nil {
+		logger.Error("failed to marshal value to json", "error", err)
 		return "", err
 	}
 	return string(b), nil
