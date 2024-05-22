@@ -14,8 +14,11 @@ import (
 	"github.com/apache/arrow/go/v15/arrow/array"
 	"github.com/apache/arrow/go/v15/parquet"
 	"github.com/apache/arrow/go/v15/parquet/pqarrow"
+	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 )
+
+var logger = log.DefaultLogger
 
 func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 	dirs := map[string]string{}
@@ -38,6 +41,7 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 
 		dir, err := os.MkdirTemp("", "duck")
 		if err != nil {
+			logger.Error("failed to create temp dir", "error", err)
 			return nil, err
 		}
 
@@ -47,6 +51,7 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 
 			schema, err := MarshalArrow(frame)
 			if err != nil {
+				logger.Error("failed to marshal arrow schema", "error", err)
 				return nil, err
 			}
 
@@ -64,10 +69,14 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 						defer wg.Done()
 						raw, err := json.Marshal(chunk)
 						if err != nil {
+							logger.Error("failed to marshal chunk", "error", err)
 							return err
 						}
 						name := fmt.Sprintf("%s%d", frame.RefID, idx)
 						_, _, err = write(dir, name, schema, raw)
+						if err != nil {
+							logger.Error("failed to write parquet file", "error", err)
+						}
 						return err
 					}(chunk, i)
 				}
@@ -78,6 +87,7 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 				}()
 
 				for err := range errCh {
+					logger.Error("failed to write chunk", "error", err)
 					return nil, err
 				}
 
@@ -86,12 +96,14 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 
 			raw, err := json.Marshal(data)
 			if err != nil {
+				logger.Error("parquet failed to marshal frame data to raw data", "error", err)
 				return nil, err
 			}
 
 			name := fmt.Sprintf("%s%d", frame.RefID, i)
 			_, _, err = write(dir, name, schema, raw)
 			if err != nil {
+				logger.Error("parquet failed to write parquet file", "error", err)
 				return nil, err
 			}
 		}
@@ -116,6 +128,7 @@ func write(dir string, name string, schema *arrow.Schema, jsonData []byte) (stri
 	filename := path.Join(dir, name+".parquet")
 	output, err := os.Create(filename)
 	if err != nil {
+		logger.Error("failed to create parquet file", "file", filename, "error", err)
 		return "", "", err
 	}
 
@@ -124,22 +137,25 @@ func write(dir string, name string, schema *arrow.Schema, jsonData []byte) (stri
 	writerProps := parquet.NewWriterProperties()
 	writer, err := pqarrow.NewFileWriter(schema, output, writerProps, pqarrow.DefaultWriterProps())
 	if err != nil {
+		logger.Error("failed to create parquet writer", "error", err)
 		return "", "", err
 	}
 	r := bytes.NewReader(jsonData)
 	record, _, err := array.RecordFromJSON(memory.DefaultAllocator, schema, r)
 	if err != nil {
+		logger.Error("failed to create record from json", "error", err)
 		return "", "", err
 	}
 
 	err = writer.Write(record)
 	if err != nil {
+		logger.Error("failed to write record", "error", err)
 		return "", "", err
 	}
 
 	err = writer.Close()
 	if err != nil {
-		fmt.Println("failed to close writer")
+		logger.Error("failed to close writer", "error", err)
 		return dir, output.Name(), nil
 	}
 	return dir, output.Name(), nil

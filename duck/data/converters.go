@@ -45,6 +45,7 @@ const layout = "2006-01-02 15:04:05-07"
 func parseDate(s string) (time.Time, error) {
 	t, err := time.Parse(layout, s)
 	if err != nil {
+		logger.Error("failed to parse time", "error", err)
 		return t, err
 	}
 	return t.UTC(), nil

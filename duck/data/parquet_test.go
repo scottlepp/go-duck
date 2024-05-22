@@ -24,6 +24,7 @@ func TestWrite(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
+	t.Skip() // need parquet file to test
 	fmt.Println("test")
 	var b bytes.Buffer
 	b.Write([]byte(".mode json \n"))
