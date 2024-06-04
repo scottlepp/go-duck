@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	sdk "github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
+	"github.com/hairyhenderson/go-which"
 	"github.com/scottlepp/go-duck/duck/data"
 )
 
@@ -41,12 +41,17 @@ func NewInMemoryDB(opts ...Opts) DuckDB {
 
 // NewDuckDB creates a new DuckDB
 func NewDuckDB(name string, opts ...Opts) DuckDB {
+	exepath := which.Which("duckdb")
+	if exepath == "" {
+		exepath = "/usr/local/bin/"
+	}
+
 	if len(opts) > 0 {
 		return DuckDB{
 			Name:   name,
 			Mode:   defaultString(opts[0].Mode, "json"),
 			Format: defaultString(opts[0].Format, "parquet"),
-			Path:   defaultString(opts[0].Path, "/usr/local/bin/"),
+			Path:   defaultString(opts[0].Path, exepath),
 			Chunk:  defaultInt(opts[0].Chunk, 0),
 		}
 	}
@@ -54,7 +59,7 @@ func NewDuckDB(name string, opts ...Opts) DuckDB {
 		Name:   name,
 		Mode:   "json",
 		Format: "parquet",
-		Path:   "/usr/local/bin/",
+		Path:   exepath,
 		Chunk:  0,
 	}
 }
@@ -71,8 +76,7 @@ func (d *DuckDB) RunCommands(commands []string) (string, error) {
 		b.Write([]byte(cmd))
 	}
 
-	cli := fmt.Sprintf("%sduckdb", strings.TrimSpace(d.Path))
-	cmd := exec.Command(cli, d.Name)
+	cmd := exec.Command(d.Path, d.Name)
 	cmd.Stdin = &b
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
