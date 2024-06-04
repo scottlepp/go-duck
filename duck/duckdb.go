@@ -43,7 +43,7 @@ func NewInMemoryDB(opts ...Opts) DuckDB {
 func NewDuckDB(name string, opts ...Opts) DuckDB {
 	exepath := which.Which("duckdb")
 	if exepath == "" {
-		exepath = "/usr/local/bin/"
+		exepath = "/usr/local/bin/duckdb"
 	}
 
 	if len(opts) > 0 {
