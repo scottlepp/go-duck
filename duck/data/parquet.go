@@ -50,6 +50,7 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 				logger.Error("failed to create arrow table", "error", err)
 				return nil, err
 			}
+			defer table.Release()
 
 			name := fmt.Sprintf("%s%d", frame.RefID, i)
 			filename := path.Join(dir, name+".parquet")
