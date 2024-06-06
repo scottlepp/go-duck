@@ -19,10 +19,10 @@ var logger = log.DefaultLogger
 
 type DuckDB struct {
 	Name   string
-	Mode   string
-	Format string
-	Exe    string
-	Chunk  int
+	mode   string
+	format string
+	exe    string
+	chunk  int
 }
 
 type Opts struct {
@@ -41,27 +41,31 @@ func NewInMemoryDB(opts ...Opts) DuckDB {
 
 // NewDuckDB creates a new DuckDB
 func NewDuckDB(name string, opts ...Opts) DuckDB {
-	exe := which.Which("duckdb")
-	if exe == "" {
-		exe = "/usr/local/bin/duckdb"
+	ddb := DuckDB{
+		Name:   name,
+		mode:   "json",
+		format: "parquet",
+		exe:    which.Which("duckdb"),
+		chunk:  0,
 	}
-
-	if len(opts) > 0 {
-		return DuckDB{
-			Name:   name,
-			Mode:   defaultString(opts[0].Mode, "json"),
-			Format: defaultString(opts[0].Format, "parquet"),
-			Exe:    exe,
-			Chunk:  defaultInt(opts[0].Chunk, 0),
+	if ddb.exe == "" {
+		ddb.exe = "/usr/local/bin/duckdb"
+	}
+	for _, opt := range opts {
+		if opt.Mode != "" {
+			ddb.mode = opt.Mode
+		}
+		if opt.Format != "" {
+			ddb.format = opt.Format
+		}
+		if opt.Exe != "" {
+			ddb.exe = opt.Exe
+		}
+		if opt.Chunk > 0 {
+			ddb.chunk = opt.Chunk
 		}
 	}
-	return DuckDB{
-		Name:   name,
-		Mode:   "json",
-		Format: "parquet",
-		Exe:    exe,
-		Chunk:  0,
-	}
+	return ddb
 }
 
 // RunCommands runs a series of of sql commands against duckdb
@@ -70,13 +74,13 @@ func (d *DuckDB) RunCommands(commands []string) (string, error) {
 	var stderr bytes.Buffer
 
 	var b bytes.Buffer
-	b.Write([]byte(d.mode()))
+	b.Write([]byte(fmt.Sprintf(".mode %s \n", d.mode)))
 	for _, c := range commands {
 		cmd := fmt.Sprintf("%s %s", c, newline)
 		b.Write([]byte(cmd))
 	}
 
-	cmd := exec.Command(d.Exe, d.Name)
+	cmd := exec.Command(d.exe, d.Name)
 	cmd.Stdin = &b
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -95,14 +99,6 @@ func (d *DuckDB) RunCommands(commands []string) (string, error) {
 	return stdout.String(), nil
 }
 
-func (d *DuckDB) mode() string {
-	m := d.Mode
-	if m == "" {
-		m = "json"
-	}
-	return fmt.Sprintf(".mode %s \n", m)
-}
-
 // Query runs a query against the database. For Databases that are NOT in-memory.
 func (d *DuckDB) Query(query string) (string, error) {
 	return d.RunCommands([]string{query})
@@ -110,7 +106,7 @@ func (d *DuckDB) Query(query string) (string, error) {
 
 // QueryFrame will load a dataframe into a view named RefID, and run the query against that view
 func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (string, error) {
-	dirs, err := data.ToParquet(frames, d.Chunk)
+	dirs, err := data.ToParquet(frames, d.chunk)
 	if err != nil {
 		logger.Error("error converting to parquet", "error", err)
 		return "", err
