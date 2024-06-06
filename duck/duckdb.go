@@ -41,31 +41,34 @@ func NewInMemoryDB(opts ...Opts) DuckDB {
 
 // NewDuckDB creates a new DuckDB
 func NewDuckDB(name string, opts ...Opts) DuckDB {
-	ddb := DuckDB{
+	db := DuckDB{
 		Name:   name,
 		mode:   "json",
 		format: "parquet",
-		exe:    which.Which("duckdb"),
-		chunk:  0,
-	}
-	if ddb.exe == "" {
-		ddb.exe = "/usr/local/bin/duckdb"
 	}
 	for _, opt := range opts {
 		if opt.Mode != "" {
-			ddb.mode = opt.Mode
+			db.mode = opt.Mode
 		}
 		if opt.Format != "" {
-			ddb.format = opt.Format
+			db.format = opt.Format
 		}
 		if opt.Exe != "" {
-			ddb.exe = opt.Exe
+			db.exe = opt.Exe
 		}
 		if opt.Chunk > 0 {
-			ddb.chunk = opt.Chunk
+			db.chunk = opt.Chunk
 		}
 	}
-	return ddb
+
+	// Find the executable if it is not configured
+	if db.exe == "" {
+		db.exe = which.Which("duckdb")
+		if db.exe == "" {
+			db.exe = "/usr/local/bin/duckdb"
+		}
+	}
+	return db
 }
 
 // RunCommands runs a series of of sql commands against duckdb
@@ -74,7 +77,7 @@ func (d *DuckDB) RunCommands(commands []string) (string, error) {
 	var stderr bytes.Buffer
 
 	var b bytes.Buffer
-	b.Write([]byte(fmt.Sprintf(".mode %s \n", d.mode)))
+	b.Write([]byte(fmt.Sprintf(".mode %s %s", d.mode, newline)))
 	for _, c := range commands {
 		cmd := fmt.Sprintf("%s %s", c, newline)
 		b.Write([]byte(cmd))
@@ -158,20 +161,6 @@ func (d *DuckDB) Destroy() error {
 		return os.Remove(d.Name)
 	}
 	return nil
-}
-
-func defaultString(val string, dflt string) string {
-	if val == "" {
-		return dflt
-	}
-	return val
-}
-
-func defaultInt(val int, dflt int) int {
-	if val == 0 {
-		return dflt
-	}
-	return val
 }
 
 func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) error {
