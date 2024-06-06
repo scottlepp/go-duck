@@ -45,7 +45,8 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 		for i, frame := range frameList {
 			dirs[frame.RefID] = dir
 
-			// Mutate the name so it matches Display name
+			// Mutate the name to match display name
+			// OK, because framesByRef already clones the field?
 			for _, f := range frame.Fields {
 				if f.Config != nil && f.Config.DisplayName != "" {
 					f.Name = f.Config.DisplayName
