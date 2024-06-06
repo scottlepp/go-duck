@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	sdk "github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
+	"github.com/hairyhenderson/go-which"
 	"github.com/scottlepp/go-duck/duck/data"
 )
 
@@ -19,17 +19,17 @@ var logger = log.DefaultLogger
 
 type DuckDB struct {
 	Name   string
-	Mode   string
-	Format string
-	Path   string
-	Chunk  int
+	mode   string
+	format string
+	exe    string
+	chunk  int
 }
 
 type Opts struct {
 	Mode   string
 	Format string
 	Chunk  int
-	Path   string
+	Exe    string
 }
 
 const newline = "\n"
@@ -41,22 +41,34 @@ func NewInMemoryDB(opts ...Opts) DuckDB {
 
 // NewDuckDB creates a new DuckDB
 func NewDuckDB(name string, opts ...Opts) DuckDB {
-	if len(opts) > 0 {
-		return DuckDB{
-			Name:   name,
-			Mode:   defaultString(opts[0].Mode, "json"),
-			Format: defaultString(opts[0].Format, "parquet"),
-			Path:   defaultString(opts[0].Path, "/usr/local/bin/"),
-			Chunk:  defaultInt(opts[0].Chunk, 0),
+	db := DuckDB{
+		Name:   name,
+		mode:   "json",
+		format: "parquet",
+	}
+	for _, opt := range opts {
+		if opt.Mode != "" {
+			db.mode = opt.Mode
+		}
+		if opt.Format != "" {
+			db.format = opt.Format
+		}
+		if opt.Exe != "" {
+			db.exe = opt.Exe
+		}
+		if opt.Chunk > 0 {
+			db.chunk = opt.Chunk
 		}
 	}
-	return DuckDB{
-		Name:   name,
-		Mode:   "json",
-		Format: "parquet",
-		Path:   "/usr/local/bin/",
-		Chunk:  0,
+
+	// Find the executable if it is not configured
+	if db.exe == "" {
+		db.exe = which.Which("duckdb")
+		if db.exe == "" {
+			db.exe = "/usr/local/bin/duckdb"
+		}
 	}
+	return db
 }
 
 // RunCommands runs a series of of sql commands against duckdb
@@ -65,14 +77,13 @@ func (d *DuckDB) RunCommands(commands []string) (string, error) {
 	var stderr bytes.Buffer
 
 	var b bytes.Buffer
-	b.Write([]byte(d.mode()))
+	b.Write([]byte(fmt.Sprintf(".mode %s %s", d.mode, newline)))
 	for _, c := range commands {
 		cmd := fmt.Sprintf("%s %s", c, newline)
 		b.Write([]byte(cmd))
 	}
 
-	cli := fmt.Sprintf("%sduckdb", strings.TrimSpace(d.Path))
-	cmd := exec.Command(cli, d.Name)
+	cmd := exec.Command(d.exe, d.Name)
 	cmd.Stdin = &b
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -91,14 +102,6 @@ func (d *DuckDB) RunCommands(commands []string) (string, error) {
 	return stdout.String(), nil
 }
 
-func (d *DuckDB) mode() string {
-	m := d.Mode
-	if m == "" {
-		m = "json"
-	}
-	return fmt.Sprintf(".mode %s \n", m)
-}
-
 // Query runs a query against the database. For Databases that are NOT in-memory.
 func (d *DuckDB) Query(query string) (string, error) {
 	return d.RunCommands([]string{query})
@@ -106,7 +109,7 @@ func (d *DuckDB) Query(query string) (string, error) {
 
 // QueryFrame will load a dataframe into a view named RefID, and run the query against that view
 func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (string, error) {
-	dirs, err := data.ToParquet(frames, d.Chunk)
+	dirs, err := data.ToParquet(frames, d.chunk)
 	if err != nil {
 		logger.Error("error converting to parquet", "error", err)
 		return "", err
@@ -158,20 +161,6 @@ func (d *DuckDB) Destroy() error {
 		return os.Remove(d.Name)
 	}
 	return nil
-}
-
-func defaultString(val string, dflt string) string {
-	if val == "" {
-		return dflt
-	}
-	return val
-}
-
-func defaultInt(val int, dflt int) int {
-	if val == 0 {
-		return dflt
-	}
-	return val
 }
 
 func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) error {

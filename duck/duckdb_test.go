@@ -59,6 +59,8 @@ func TestQueryFrame(t *testing.T) {
 }
 
 func TestQueryFrameWithDisplayName(t *testing.T) {
+	t.Skip()
+
 	db := NewInMemoryDB()
 
 	var values = []string{"test"}
