@@ -49,12 +49,15 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 		for i, frame := range frameList {
 			dirs[frame.RefID] = dir
 
-			schema, err := MarshalArrow(frame)
+			table, err := data.FrameToArrowTable(frame)
 			if err != nil {
-				logger.Error("failed to marshal arrow schema", "error", err)
+				logger.Error("failed to create arrow table", "error", err)
 				return nil, err
 			}
+			// TODO... no need to create the table from data anymore,
+			// BUT it means any modifications must be made before creating the arrow.Table
 
+			schema := table.Schema()
 			data := frameData(frame)
 
 			if chunk > 0 {
@@ -122,6 +125,13 @@ func frameData(frame *data.Frame) FrameData {
 		data = append(data, row)
 	}
 	return data
+}
+
+func getFieldName(field *data.Field) string {
+	if field.Config != nil && field.Config.DisplayName != "" {
+		return field.Config.DisplayName
+	}
+	return field.Name
 }
 
 func write(dir string, name string, schema *arrow.Schema, jsonData []byte) (string, string, error) {
