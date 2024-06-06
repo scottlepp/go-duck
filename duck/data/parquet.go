@@ -1,17 +1,11 @@
 package data
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
-	"sync"
 	"time"
 
-	"github.com/apache/arrow/go/arrow/memory"
-	"github.com/apache/arrow/go/v15/arrow"
-	"github.com/apache/arrow/go/v15/arrow/array"
 	"github.com/apache/arrow/go/v15/parquet"
 	"github.com/apache/arrow/go/v15/parquet/pqarrow"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
@@ -34,6 +28,8 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 	// 		}
 	// 	}
 	// }
+	writerProps := parquet.NewWriterProperties()
+	SIZELEN := int64(1024 * 1024)
 
 	for _, frameList := range frameIndex {
 
@@ -54,141 +50,24 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 				logger.Error("failed to create arrow table", "error", err)
 				return nil, err
 			}
-			// TODO... no need to create the table from data anymore,
-			// BUT it means any modifications must be made before creating the arrow.Table
-
-			schema := table.Schema()
-			data := frameData(frame)
-
-			if chunk > 0 {
-				var wg sync.WaitGroup
-				errCh := make(chan error, 10)
-				// write files in chunks
-				chunks := makeChunks(data, chunk)
-				for i, chunk := range chunks {
-					wg.Add(1)
-
-					go func(chunk FrameData, idx int) error {
-						defer wg.Done()
-						raw, err := json.Marshal(chunk)
-						if err != nil {
-							logger.Error("failed to marshal chunk", "error", err)
-							return err
-						}
-						name := fmt.Sprintf("%s%d", frame.RefID, idx)
-						_, _, err = write(dir, name, schema, raw)
-						if err != nil {
-							logger.Error("failed to write parquet file", "error", err)
-						}
-						return err
-					}(chunk, i)
-				}
-
-				go func() {
-					wg.Wait()
-					close(errCh)
-				}()
-
-				for err := range errCh {
-					logger.Error("failed to write chunk", "error", err)
-					return nil, err
-				}
-
-				continue
-			}
-
-			raw, err := json.Marshal(data)
-			if err != nil {
-				logger.Error("parquet failed to marshal frame data to raw data", "error", err)
-				return nil, err
-			}
 
 			name := fmt.Sprintf("%s%d", frame.RefID, i)
-			_, _, err = write(dir, name, schema, raw)
+			filename := path.Join(dir, name+".parquet")
+			output, err := os.Create(filename)
 			if err != nil {
-				logger.Error("parquet failed to write parquet file", "error", err)
+				logger.Error("failed to create parquet file", "file", filename, "error", err)
+				return nil, err
+			}
+			defer output.Close()
+
+			err = pqarrow.WriteTable(table, output, SIZELEN, writerProps, pqarrow.DefaultWriterProps())
+			if err != nil {
+				logger.Error("error writing parquet", "error", err)
 				return nil, err
 			}
 		}
 	}
 	return dirs, nil
-}
-
-func frameData(frame *data.Frame) FrameData {
-	data := FrameData{}
-	for rowIdx := 0; rowIdx < frame.Rows(); rowIdx++ {
-		row := map[string]any{}
-		for colIdx, f := range frame.Fields {
-			name := getFieldName(f)
-			row[name] = frame.At(colIdx, rowIdx)
-		}
-		data = append(data, row)
-	}
-	return data
-}
-
-func getFieldName(field *data.Field) string {
-	if field.Config != nil && field.Config.DisplayName != "" {
-		return field.Config.DisplayName
-	}
-	return field.Name
-}
-
-func write(dir string, name string, schema *arrow.Schema, jsonData []byte) (string, string, error) {
-	filename := path.Join(dir, name+".parquet")
-	output, err := os.Create(filename)
-	if err != nil {
-		logger.Error("failed to create parquet file", "file", filename, "error", err)
-		return "", "", err
-	}
-
-	defer output.Close()
-
-	writerProps := parquet.NewWriterProperties()
-	writer, err := pqarrow.NewFileWriter(schema, output, writerProps, pqarrow.DefaultWriterProps())
-	if err != nil {
-		logger.Error("failed to create parquet writer", "error", err)
-		return "", "", err
-	}
-	r := bytes.NewReader(jsonData)
-	record, _, err := array.RecordFromJSON(memory.DefaultAllocator, schema, r)
-	if err != nil {
-		logger.Error("failed to create record from json", "error", err)
-		return "", "", err
-	}
-
-	err = writer.Write(record)
-	if err != nil {
-		logger.Error("failed to write record", "error", err)
-		return "", "", err
-	}
-
-	err = writer.Close()
-	if err != nil {
-		logger.Error("failed to close writer", "error", err)
-		return dir, output.Name(), nil
-	}
-	return dir, output.Name(), nil
-}
-
-type FrameData []map[string]any
-
-func makeChunks(xs FrameData, chunkSize int) []FrameData {
-	if len(xs) == 0 {
-		return nil
-	}
-	divided := make([]FrameData, (len(xs)+chunkSize-1)/chunkSize)
-	prev := 0
-	i := 0
-	till := len(xs) - chunkSize
-	for prev < till {
-		next := prev + chunkSize
-		divided[i] = xs[prev:next]
-		prev = next
-		i++
-	}
-	divided[i] = xs[prev:]
-	return divided
 }
 
 func framesByRef(frames []*data.Frame) map[string][]*data.Frame {

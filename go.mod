@@ -47,7 +47,6 @@ require (
 )
 
 require (
-	github.com/apache/arrow/go/arrow v0.0.0-20200730104253-651201b0f516
 	github.com/apache/thrift v0.17.0 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/golang/snappy v0.0.4 // indirect
