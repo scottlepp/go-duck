@@ -45,6 +45,14 @@ func ToParquet(frames []*data.Frame, chunk int) (map[string]string, error) {
 		for i, frame := range frameList {
 			dirs[frame.RefID] = dir
 
+			// Mutate the name so it matches Display name
+			for _, f := range frame.Fields {
+				if f.Config != nil && f.Config.DisplayName != "" {
+					f.Name = f.Config.DisplayName
+					f.Config.DisplayName = ""
+				}
+			}
+
 			table, err := data.FrameToArrowTable(frame)
 			if err != nil {
 				logger.Error("failed to create arrow table", "error", err)
