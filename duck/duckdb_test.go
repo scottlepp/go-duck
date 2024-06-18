@@ -58,6 +58,26 @@ func TestQueryFrame(t *testing.T) {
 	assert.Contains(t, res, `[{"value":"test"}]`)
 }
 
+func TestQueryFrameCache(t *testing.T) {
+	opts := Opts{
+		CacheDuration: 10,
+	}
+	db := NewInMemoryDB(opts)
+
+	var values = []string{"test"}
+	frame := data.NewFrame("foo", data.NewField("value", nil, values))
+	frame.RefID = "foo"
+	frames := []*data.Frame{frame}
+
+	res, err := db.QueryFrames("foo", "select * from foo", frames)
+	assert.Nil(t, err)
+	assert.Contains(t, res, `[{"value":"test"}]`)
+
+	res, err = db.QueryFrames("foo", "select * from foo", frames)
+	assert.Nil(t, err)
+	assert.Contains(t, res, `[{"value":"test"}]`)
+}
+
 func TestQueryFrameWithDisplayName(t *testing.T) {
 
 	db := NewInMemoryDB()
