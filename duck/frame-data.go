@@ -15,11 +15,11 @@ type FrameData struct {
 	db            *DuckDB
 }
 
-func (f *FrameData) Query(name string, query string, frames []*sdk.Frame) (string, error) {
+func (f *FrameData) Query(name string, query string, frames []*sdk.Frame) (string, bool, error) {
 	dirs, cached, err := f.data(name, query, frames)
 	if err != nil {
 		logger.Error("error converting to parquet", "error", err)
-		return "", err
+		return "", cached, err
 	}
 
 	defer f.postProcess(name, query, dirs, cached)
@@ -43,7 +43,7 @@ func (f *FrameData) Query(name string, query string, frames []*sdk.Frame) (strin
 
 	if qerr != nil {
 		logger.Error("error running commands", "error", err)
-		return "", err
+		return "", cached, err
 	}
 
 	key := fmt.Sprintf("%s:%s", name, query)
@@ -51,7 +51,7 @@ func (f *FrameData) Query(name string, query string, frames []*sdk.Frame) (strin
 		f.cache.set(key, dirs)
 	}
 
-	return res, nil
+	return res, cached, nil
 }
 
 func (f *FrameData) runQuery(query string, dirs Dirs, frames []*sdk.Frame) (string, error) {

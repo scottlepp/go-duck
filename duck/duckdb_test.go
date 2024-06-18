@@ -52,7 +52,7 @@ func TestQueryFrame(t *testing.T) {
 	frame.RefID = "foo"
 	frames := []*data.Frame{frame}
 
-	res, err := db.QueryFrames("foo", "select * from foo", frames)
+	res, _, err := db.QueryFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Contains(t, res, `[{"value":"test"}]`)
@@ -60,7 +60,7 @@ func TestQueryFrame(t *testing.T) {
 
 func TestQueryFrameCache(t *testing.T) {
 	opts := Opts{
-		CacheDuration: 10,
+		CacheDuration: 5,
 	}
 	db := NewInMemoryDB(opts)
 
@@ -69,12 +69,22 @@ func TestQueryFrameCache(t *testing.T) {
 	frame.RefID = "foo"
 	frames := []*data.Frame{frame}
 
-	res, err := db.QueryFrames("foo", "select * from foo", frames)
+	res, cached, err := db.QueryFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
+	assert.False(t, cached)
 	assert.Contains(t, res, `[{"value":"test"}]`)
 
-	res, err = db.QueryFrames("foo", "select * from foo", frames)
+	res, cached, err = db.QueryFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
+	assert.True(t, cached)
+	assert.Contains(t, res, `[{"value":"test"}]`)
+
+	// wait for cache to expire
+	time.Sleep(6 * time.Second)
+
+	res, cached, err = db.QueryFrames("foo", "select * from foo", frames)
+	assert.Nil(t, err)
+	assert.False(t, cached)
 	assert.Contains(t, res, `[{"value":"test"}]`)
 }
 
@@ -91,7 +101,7 @@ func TestQueryFrameWithDisplayName(t *testing.T) {
 	frame.RefID = "foo"
 	frames := []*data.Frame{frame}
 
-	res, err := db.QueryFrames("foo", "select * from foo", frames)
+	res, _, err := db.QueryFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Contains(t, res, `[{"some value":"test"}]`)
@@ -108,7 +118,7 @@ func TestQueryFrameChunks(t *testing.T) {
 	frame.RefID = "foo"
 	frames := []*data.Frame{frame}
 
-	res, err := db.QueryFrames("foo", "select * from foo", frames)
+	res, _, err := db.QueryFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Contains(t, res, `test2`)

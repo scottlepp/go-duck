@@ -117,7 +117,7 @@ func (d *DuckDB) Query(query string) (string, error) {
 }
 
 // QueryFrame will load a dataframe into a view named RefID, and run the query against that view
-func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (string, error) {
+func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (string, bool, error) {
 	data := FrameData{
 		cacheDuration: d.cacheDuration,
 		cache:         &d.cache,
@@ -137,12 +137,28 @@ func wipe(dirs map[string]string) {
 }
 
 func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame, f *sdk.Frame) error {
-	res, err := d.QueryFrames(name, query, frames)
+	res, cached, err := d.QueryFrames(name, query, frames)
 	if err != nil {
 		return err
 	}
 
-	return resultsToFrame(name, res, f, frames)
+	err = resultsToFrame(name, res, f, frames)
+	if err != nil {
+		return err
+	}
+	if cached {
+		for _, frame := range frames {
+			if frame.Meta == nil {
+				frame.Meta = &sdk.FrameMeta{}
+			}
+			notice := sdk.Notice{
+				Severity: sdk.NoticeSeverityInfo,
+				Text:     "Data retrieved from cache",
+			}
+			frame.Meta.Notices = append(frame.Meta.Notices, notice)
+		}
+	}
+	return nil
 }
 
 // Destroy will remove database files created by duckdb
