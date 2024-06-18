@@ -99,9 +99,10 @@ func (f *FrameData) postProcess(name string, query string, dirs Dirs, cached boo
 		// delete the new cache entry after cacheDuration
 		if !cached {
 			time.Sleep(time.Duration(f.cacheDuration) * time.Second)
-			f.cache.delete(fmt.Sprintf("%s:%s", name, query))
+			key := fmt.Sprintf("%s:%s", name, query)
+			f.cache.delete(key)
 			// if the query is running wait for the query to finish before deleting the parquet files
-			wg, wait := f.cache.getWait(fmt.Sprintf("%s:%s", name, query))
+			wg, wait := f.cache.getWait(key)
 			if wait {
 				wg.Wait()
 				wipe(dirs)
