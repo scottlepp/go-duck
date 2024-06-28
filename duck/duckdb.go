@@ -17,30 +17,35 @@ import (
 
 var logger = log.DefaultLogger
 
+type Dirs map[string]string
+
 type DuckDB struct {
-	Name   string
-	mode   string
-	format string
-	exe    string
-	chunk  int
+	Name          string
+	mode          string
+	format        string
+	exe           string
+	chunk         int
+	cacheDuration int
+	cache         cache
 }
 
 type Opts struct {
-	Mode   string
-	Format string
-	Chunk  int
-	Exe    string
+	Mode          string
+	Format        string
+	Chunk         int
+	Exe           string
+	CacheDuration int
 }
 
 const newline = "\n"
 
 // NewInMemoryDB creates a new in-memory DuckDB
-func NewInMemoryDB(opts ...Opts) DuckDB {
+func NewInMemoryDB(opts ...Opts) *DuckDB {
 	return NewDuckDB("", opts...)
 }
 
 // NewDuckDB creates a new DuckDB
-func NewDuckDB(name string, opts ...Opts) DuckDB {
+func NewDuckDB(name string, opts ...Opts) *DuckDB {
 	db := DuckDB{
 		Name:   name,
 		mode:   "json",
@@ -59,6 +64,9 @@ func NewDuckDB(name string, opts ...Opts) DuckDB {
 		if opt.Chunk > 0 {
 			db.chunk = opt.Chunk
 		}
+		if opt.CacheDuration > 0 {
+			db.cacheDuration = opt.CacheDuration
+		}
 	}
 
 	// Find the executable if it is not configured
@@ -68,7 +76,8 @@ func NewDuckDB(name string, opts ...Opts) DuckDB {
 			db.exe = "/usr/local/bin/duckdb"
 		}
 	}
-	return db
+	db.cache = cache{}
+	return &db
 }
 
 // RunCommands runs a series of of sql commands against duckdb
@@ -108,51 +117,48 @@ func (d *DuckDB) Query(query string) (string, error) {
 }
 
 // QueryFrame will load a dataframe into a view named RefID, and run the query against that view
-func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (string, error) {
-	dirs, err := data.ToParquet(frames, d.chunk)
-	if err != nil {
-		logger.Error("error converting to parquet", "error", err)
-		return "", err
+func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (string, bool, error) {
+	data := FrameData{
+		cacheDuration: d.cacheDuration,
+		cache:         &d.cache,
+		db:            d,
 	}
 
-	defer func() {
-		for _, dir := range dirs {
-			err := os.RemoveAll(dir)
-			if err != nil {
-				logger.Error("failed to remove parquet files", "error", err)
-			}
+	return data.Query(name, query, frames)
+}
+
+func wipe(dirs map[string]string) {
+	for _, dir := range dirs {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			logger.Error("failed to remove parquet files", "error", err)
 		}
-	}()
-
-	commands := []string{}
-	created := map[string]bool{}
-	logger.Debug("starting to create views from frames", "frames", len(frames))
-	for _, frame := range frames {
-		if created[frame.RefID] {
-			continue
-		}
-		cmd := fmt.Sprintf("CREATE VIEW %s AS (SELECT * from '%s/*.parquet');", frame.RefID, dirs[frame.RefID])
-		logger.Debug("creating view", "cmd", cmd)
-		commands = append(commands, cmd)
-		created[frame.RefID] = true
 	}
-
-	commands = append(commands, query)
-	res, err := d.RunCommands(commands)
-	if err != nil {
-		logger.Error("error running commands", "error", err)
-		return "", err
-	}
-	return res, nil
 }
 
 func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame, f *sdk.Frame) error {
-	res, err := d.QueryFrames(name, query, frames)
+	res, cached, err := d.QueryFrames(name, query, frames)
 	if err != nil {
 		return err
 	}
 
-	return resultsToFrame(name, res, f, frames)
+	err = resultsToFrame(name, res, f, frames)
+	if err != nil {
+		return err
+	}
+	if cached {
+		for _, frame := range frames {
+			if frame.Meta == nil {
+				frame.Meta = &sdk.FrameMeta{}
+			}
+			notice := sdk.Notice{
+				Severity: sdk.NoticeSeverityInfo,
+				Text:     "Data retrieved from cache",
+			}
+			frame.Meta.Notices = append(frame.Meta.Notices, notice)
+		}
+	}
+	return nil
 }
 
 // Destroy will remove database files created by duckdb

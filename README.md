@@ -5,9 +5,6 @@
 * Doesn't require CGO.
 * Requires duckdb cli to be in the path.
 
-## Dataframes
-* Allows querying dataframes using SQL, with all the aggregate/window/analytics functions from DuckDB.
-
 ## In Memory Database
 ```
 	db := NewInMemoryDB()
@@ -30,6 +27,10 @@
 	_, err := db.RunCommands(commands)
 	res, err := db.Query("SELECT * from t1;")
 ```
+
+## Dataframes
+* Allows querying dataframes using SQL, with all the aggregate/window/analytics functions from DuckDB.
+
 ## Query Dataframes
 ```
 	db := NewInMemoryDB()
