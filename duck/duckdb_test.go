@@ -154,9 +154,9 @@ func TestQueryFrameIntoFrameMultipleColumns(t *testing.T) {
 
 	frame := data.NewFrame(
 		"A",
-		data.NewField("State", nil, []string{"Alaska"}),
-		data.NewField("Lat", nil, []string{"61"}),
-		data.NewField("Lng", nil, []string{"32"}),
+		data.NewField("Z State", nil, []string{"Alaska"}),
+		data.NewField("Y Lat", nil, []string{"61"}),
+		data.NewField("X Lng", nil, []string{"32"}),
 	)
 	frame.RefID = "A"
 
@@ -166,9 +166,9 @@ func TestQueryFrameIntoFrameMultipleColumns(t *testing.T) {
 	err := db.QueryFramesInto("B", "select * from A", frames, model)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "State", model.Fields[0].Name)
-	assert.Equal(t, "Lat", model.Fields[1].Name)
-	assert.Equal(t, "Lng", model.Fields[2].Name)
+	assert.Equal(t, "Z State", model.Fields[0].Name)
+	assert.Equal(t, "Y Lat", model.Fields[1].Name)
+	assert.Equal(t, "X Lng", model.Fields[2].Name)
 
 	txt, err := model.StringTable(-1, -1)
 	assert.Nil(t, err)

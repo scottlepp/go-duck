@@ -12,7 +12,6 @@ import (
 	sdk "github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
 	"github.com/hairyhenderson/go-which"
-	"github.com/scottlepp/go-duck/duck/data"
 )
 
 var logger = log.DefaultLogger
@@ -179,8 +178,10 @@ func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) 
 		logger.Error("error unmarshalling results", "error", err)
 		return err
 	}
-	converters := data.Converters(frames)
-	resultsFrame, err := framestruct.ToDataFrame(name, results, converters...)
+	// converters := data.Converters(frames)
+	framestructOpt := framestruct.WithColumn0("Z State")
+	// opts := append(converters, framestructOpt)
+	resultsFrame, err := framestruct.ToDataFrame(name, results, framestructOpt)
 	if err != nil {
 		logger.Error("error converting results to frame", "error", err)
 		return err
