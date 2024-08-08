@@ -6,6 +6,7 @@ require (
 	github.com/apache/arrow/go/v15 v15.0.2
 	github.com/grafana/grafana-plugin-sdk-go v0.234.0
 	github.com/hairyhenderson/go-which v0.2.0
+	github.com/iancoleman/orderedmap v0.3.0
 	github.com/stretchr/testify v1.9.0
 )
 
