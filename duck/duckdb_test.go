@@ -149,6 +149,33 @@ func TestQueryFrameIntoFrame(t *testing.T) {
 	fmt.Printf("GOT: %s", txt)
 }
 
+func TestQueryFrameIntoFrameMultipleColumns(t *testing.T) {
+	db := NewInMemoryDB()
+
+	frame := data.NewFrame(
+		"A",
+		data.NewField("Z State", nil, []string{"Alaska"}),
+		data.NewField("Y Lat", nil, []string{"61"}),
+		data.NewField("X Lng", nil, []string{"32"}),
+	)
+	frame.RefID = "A"
+
+	frames := []*data.Frame{frame}
+
+	model := &data.Frame{}
+	err := db.QueryFramesInto("B", "select * from A", frames, model)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "Z State", model.Fields[0].Name)
+	assert.Equal(t, "Y Lat", model.Fields[1].Name)
+	assert.Equal(t, "X Lng", model.Fields[2].Name)
+
+	txt, err := model.StringTable(-1, -1)
+	assert.Nil(t, err)
+
+	fmt.Printf("GOT: %s", txt)
+}
+
 func TestMultiFrame(t *testing.T) {
 	db := NewInMemoryDB()
 

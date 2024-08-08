@@ -12,6 +12,7 @@ import (
 	sdk "github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
 	"github.com/hairyhenderson/go-which"
+	"github.com/iancoleman/orderedmap"
 	"github.com/scottlepp/go-duck/duck/data"
 )
 
@@ -181,12 +182,33 @@ func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) 
 	}
 	converters := data.Converters(frames)
 	resultsFrame, err := framestruct.ToDataFrame(name, results, converters...)
+
 	if err != nil {
 		logger.Error("error converting results to frame", "error", err)
 		return err
 	}
 
-	f.Fields = resultsFrame.Fields
+	// Order the fields in the same order as the source frame:
+	// Build a slice of ordered keys
+
+	var orderedKeys []string
+	var temp []orderedmap.OrderedMap
+	err = json.Unmarshal([]byte(res), &temp)
+	if err == nil {
+		orderedKeys = temp[0].Keys()
+	}
+
+	// Create a map of column names to indexes
+	columnIndex := make(map[string]int)
+	for i, field := range resultsFrame.Fields {
+		columnIndex[field.Name] = i
+	}
+	// Add columns to the DataFrame
+	for _, key := range orderedKeys {
+		i := columnIndex[key]
+		f.Fields = append(f.Fields, resultsFrame.Fields[i])
+	}
+
 	f.Name = resultsFrame.Name
 	f.Meta = resultsFrame.Meta
 	f.RefID = resultsFrame.RefID
