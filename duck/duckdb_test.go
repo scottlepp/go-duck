@@ -252,6 +252,38 @@ func TestTimestamps(t *testing.T) {
 	assert.Contains(t, txt, "Type: []*time.Time")
 }
 
+func TestTimeSeries(t *testing.T) {
+	db := NewInMemoryDB()
+
+	tt := "2024-02-23 09:01:54"
+	dd, err := dateparse.ParseAny(tt)
+	assert.Nil(t, err)
+
+	var values = []time.Time{dd}
+	timeField := data.NewField("time", nil, values)
+
+	groupField := data.NewField("group", nil, []string{"A"})
+	valueField := data.NewField("value", nil, []*float64{new(float64)})
+
+	frame := data.NewFrame("foo", timeField, groupField, valueField)
+	frame.RefID = "foo"
+
+	frames := []*data.Frame{frame}
+
+	model := &data.Frame{}
+	err = db.QueryFramesInto("foo", "select * from foo", frames, model)
+	assert.Nil(t, err)
+
+	assert.Equal(t, data.FrameTypeTimeSeriesWide, model.Meta.Type)
+
+	assert.Equal(t, 1, model.Rows())
+	txt, err := model.StringTable(-1, -1)
+	assert.Nil(t, err)
+
+	fmt.Printf("GOT: %s", txt)
+	assert.Contains(t, txt, "Type: []time.Time")
+}
+
 func TestLabels(t *testing.T) {
 	db := NewInMemoryDB()
 

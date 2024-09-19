@@ -213,6 +213,18 @@ func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) 
 	f.Meta = resultsFrame.Meta
 	f.RefID = resultsFrame.RefID
 
+	kind := f.TimeSeriesSchema().Type
+	if kind == sdk.TimeSeriesTypeLong {
+		fillMode := &sdk.FillMissing{Mode: sdk.FillModeNull}
+		frame, err := sdk.LongToWide(f, fillMode)
+		if err != nil {
+			logger.Warn("could not convert frame long to wide", "error", err)
+			return nil
+		}
+		f.Fields = frame.Fields
+		f.Meta = frame.Meta
+	}
+
 	// TODO - appending to field names for now
 	// applyLabels(*resultsFrame, frames)
 
