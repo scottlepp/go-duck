@@ -223,6 +223,14 @@ func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) 
 		}
 		f.Fields = frame.Fields
 		f.Meta = frame.Meta
+		return nil
+	}
+
+	if kind == sdk.TimeSeriesTypeWide {
+		if f.Meta == nil {
+			f.Meta = &sdk.FrameMeta{}
+		}
+		f.Meta.Type = sdk.FrameTypeTimeSeriesWide
 	}
 
 	// TODO - appending to field names for now
