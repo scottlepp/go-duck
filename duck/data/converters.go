@@ -52,6 +52,8 @@ func parseDate(s string) (time.Time, error) {
 	return t.UTC(), nil
 }
 
+// TODO: just define converters for the date fields we find
+// then we can avoid looping through all the results and fields here
 func ConvertDateFields(results []map[string]any) {
 	dateFields := findDateFields(results)
 	for row, result := range results {
