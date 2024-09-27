@@ -38,7 +38,7 @@ var timeConverter = func(i interface{}) (interface{}, error) {
 	if s, ok := i.(*string); ok {
 		return parseDate(*s)
 	}
-	return nil, nil
+	return i, nil
 }
 
 const layout = "2006-01-02 15:04:05-07"
