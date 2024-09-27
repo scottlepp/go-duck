@@ -401,6 +401,37 @@ func TestLabelsMultiFrame(t *testing.T) {
 	assert.Contains(t, txt, "B")
 }
 
+func TestTimeSeriesAggregate(t *testing.T) {
+	db := NewInMemoryDB()
+
+	tt := "2024-02-23 09:01:54"
+	dd, err := dateparse.ParseAny(tt)
+	assert.Nil(t, err)
+
+	var values = []time.Time{dd, dd, dd}
+	timeField := data.NewField("time", nil, values)
+	valueField := data.NewField("value", nil, []*float64{new(float64), new(float64), new(float64)})
+	categoryField := data.NewField("category", nil, []string{"a", "a", "b"})
+
+	frame := data.NewFrame("foo", timeField, valueField, categoryField)
+	frame.RefID = "foo"
+
+	frames := []*data.Frame{frame}
+
+	model := &data.Frame{}
+	err = db.QueryFramesInto("foo", "select CURRENT_TIMESTAMP, min(time) as t, 1 as j from foo group by category", frames, model)
+	assert.Nil(t, err)
+
+	assert.Equal(t, data.FrameTypeTimeSeriesWide, model.Meta.Type)
+
+	assert.Equal(t, 2, model.Rows())
+	txt, err := model.StringTable(-1, -1)
+	assert.Nil(t, err)
+
+	fmt.Printf("GOT: %s", txt)
+	assert.Contains(t, txt, "Type: []*time.Time")
+}
+
 // TODO - don't think this is valid to have a frame with duplicate fields
 // func TestWideFrameWithDuplicateFields(t *testing.T) {
 // 	db := NewInMemoryDB()
