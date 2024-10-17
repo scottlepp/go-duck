@@ -239,6 +239,7 @@ func (d *DuckDB) runCommands(commands []string) (string, error) {
 	var cmd *exec.Cmd
 	if d.docker {
 		volume := fmt.Sprintf("%s:%s", tempDir, tempDir)
+		logger.Debug("running command in docker", "volume", volume, "image", duckdbImage)
 		cmd = exec.Command("docker", "run", "-i", "-v", volume, duckdbImage)
 	} else {
 		cmd = exec.Command(d.exe, d.Name)
