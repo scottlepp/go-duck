@@ -166,6 +166,9 @@ func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) 
 		logger.Error("error unmarshalling results", "error", err)
 		return err
 	}
+
+	data.ConvertDateFields(results)
+
 	converters := data.Converters(frames)
 	resultsFrame, err := framestruct.ToDataFrame(name, results, converters...)
 
