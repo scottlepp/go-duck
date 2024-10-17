@@ -45,7 +45,7 @@ type Opts struct {
 const newline = "\n"
 const duckdbImage = "datacatering/duckdb:v1.0.0"
 
-var tempDir = os.Getenv("TEMPDIR")
+var tempDir = os.Getenv("TMPDIR")
 
 // NewInMemoryDB creates a new in-memory DuckDB
 func NewInMemoryDB(opts ...Opts) *DuckDB {
