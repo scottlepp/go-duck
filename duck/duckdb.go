@@ -28,6 +28,8 @@ type DuckDB struct {
 	chunk         int
 	cacheDuration int
 	cache         cache
+	docker        bool
+	image         string
 }
 
 type Opts struct {
@@ -36,9 +38,13 @@ type Opts struct {
 	Chunk         int
 	Exe           string
 	CacheDuration int
+	Docker        bool
+	Image         string
 }
 
 const newline = "\n"
+const tempDir = "/var/folders/fv"
+const duckdbImage = "datacatering/duckdb:v1.0.0"
 
 // NewInMemoryDB creates a new in-memory DuckDB
 func NewInMemoryDB(opts ...Opts) *DuckDB {
@@ -68,10 +74,15 @@ func NewDuckDB(name string, opts ...Opts) *DuckDB {
 		if opt.CacheDuration > 0 {
 			db.cacheDuration = opt.CacheDuration
 		}
+		db.image = duckdbImage
+		if opt.Image != "" {
+			db.image = opt.Image
+		}
+		db.docker = opt.Docker
 	}
 
 	// Find the executable if it is not configured
-	if db.exe == "" {
+	if db.exe == "" && !db.docker {
 		db.exe = which.Which("duckdb")
 		if db.exe == "" {
 			db.exe = "/usr/local/bin/duckdb"
@@ -83,33 +94,7 @@ func NewDuckDB(name string, opts ...Opts) *DuckDB {
 
 // RunCommands runs a series of of sql commands against duckdb
 func (d *DuckDB) RunCommands(commands []string) (string, error) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	var b bytes.Buffer
-	b.Write([]byte(fmt.Sprintf(".mode %s %s", d.mode, newline)))
-	for _, c := range commands {
-		cmd := fmt.Sprintf("%s %s", c, newline)
-		b.Write([]byte(cmd))
-	}
-
-	cmd := exec.Command(d.exe, d.Name)
-	cmd.Stdin = &b
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		message := err.Error() + stderr.String()
-		logger.Error("error running command", "cmd", b.String(), "message", message, "error", err)
-		return "", errors.New(message)
-	}
-	if stderr.String() != "" {
-		logger.Error("error running command", "cmd", b.String(), "error", stderr.String())
-		return "", errors.New(stderr.String())
-	}
-
-	return stdout.String(), nil
+	return d.runCommands(commands)
 }
 
 // Query runs a query against the database. For Databases that are NOT in-memory.
@@ -237,6 +222,41 @@ func resultsToFrame(name string, res string, f *sdk.Frame, frames []*sdk.Frame) 
 	// applyLabels(*resultsFrame, frames)
 
 	return nil
+}
+
+func (d *DuckDB) runCommands(commands []string) (string, error) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	var b bytes.Buffer
+	b.Write([]byte(fmt.Sprintf(".mode %s %s", d.mode, newline)))
+	for _, c := range commands {
+		cmd := fmt.Sprintf("%s %s", c, newline)
+		b.Write([]byte(cmd))
+	}
+
+	var cmd *exec.Cmd
+	if d.docker {
+		volume := fmt.Sprintf("%s:%s", tempDir, tempDir)
+		cmd = exec.Command("docker", "run", "-i", "-v", volume, duckdbImage)
+	} else {
+		cmd = exec.Command(d.exe, d.Name)
+	}
+	cmd.Stdin = &b
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		message := err.Error() + stderr.String()
+		logger.Error("error running command", "cmd", b.String(), "message", message, "error", err)
+		return "", errors.New(message)
+	}
+	if stderr.String() != "" {
+		logger.Error("error running command", "cmd", b.String(), "error", stderr.String())
+		return "", errors.New(stderr.String())
+	}
+	return stdout.String(), nil
 }
 
 // TODO

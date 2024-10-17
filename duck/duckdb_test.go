@@ -26,6 +26,22 @@ func TestCommands(t *testing.T) {
 	assert.Contains(t, res, `[{"i":1,"j":5}]`)
 }
 
+func TestCommandsDocker(t *testing.T) {
+	db := NewInMemoryDB(Opts{Docker: true})
+
+	commands := []string{
+		"CREATE TABLE t1 (i INTEGER, j INTEGER);",
+		"INSERT INTO t1 VALUES (1, 5);",
+		"SELECT * from t1;",
+	}
+	res, err := db.RunCommands(commands)
+	if err != nil {
+		t.Fail()
+		return
+	}
+	assert.Contains(t, res, `[{"i":1,"j":5}]`)
+}
+
 func TestQuery(t *testing.T) {
 	db := NewDuckDB("foo")
 
@@ -126,6 +142,31 @@ func TestQueryFrameChunks(t *testing.T) {
 
 func TestQueryFrameIntoFrame(t *testing.T) {
 	db := NewInMemoryDB()
+
+	var values = []string{"2024-02-23 09:01:54"}
+	frame := data.NewFrame("foo", data.NewField("value", nil, values))
+	frame.RefID = "foo"
+
+	var values2 = []string{"2024-02-23 09:02:54"}
+	frame2 := data.NewFrame("foo", data.NewField("value", nil, values2))
+	frame2.RefID = "foo"
+
+	frames := []*data.Frame{frame, frame2}
+
+	model := &data.Frame{}
+	err := db.QueryFramesInto("foo", "select * from foo order by value desc", frames, model)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 2, model.Rows())
+
+	txt, err := model.StringTable(-1, -1)
+	assert.Nil(t, err)
+
+	fmt.Printf("GOT: %s", txt)
+}
+
+func TestQueryFrameIntoFrameDocker(t *testing.T) {
+	db := NewInMemoryDB(Opts{Docker: true})
 
 	var values = []string{"2024-02-23 09:01:54"}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
