@@ -27,6 +27,9 @@ jobs:
           unzip /tmp/duckdb.zip -d /usr/local/bin/
           duckdb --version
 
+      - name: add duckdb image
+        run: docker pull datacatering/duckdb:v1.0.0
+
       - name: Build
         run: go build -v ./...
 
