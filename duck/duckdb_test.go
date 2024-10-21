@@ -143,6 +143,9 @@ func TestQueryFrameNoFileRead(t *testing.T) {
 
 	_, _, err = db.QueryFrames("foo", "SELECT * FROM 'test.parquet'", frames)
 	assert.NotNil(t, err)
+
+	_, _, err = db.QueryFrames("foo", "COPY test FROM 'test.parquet'", frames)
+	assert.NotNil(t, err)
 }
 
 func TestQueryFrameCache(t *testing.T) {
