@@ -96,7 +96,7 @@ func TestQueryAgg(t *testing.T) {
 	frame.RefID = "foo"
 	frames := []*data.Frame{frame}
 
-	res, _, err := db.QueryFrames("foo", "select min(a), b from foo", frames)
+	res, _, err := db.QueryFrames("foo", "select min(value) as value from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Contains(t, res, `[{"value":"test"}]`)
