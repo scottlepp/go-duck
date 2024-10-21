@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	sdk "github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/framestruct"
 	"github.com/hairyhenderson/go-which"
 	"github.com/iancoleman/orderedmap"
+	"github.com/jeremywohl/flatten"
 	"github.com/scottlepp/go-duck/duck/data"
 )
 
@@ -105,6 +107,10 @@ func (d *DuckDB) Query(query string) (string, error) {
 
 // QueryFrame will load a dataframe into a view named RefID, and run the query against that view
 func (d *DuckDB) QueryFrames(name string, query string, frames []*sdk.Frame) (string, bool, error) {
+	err := d.validate(query)
+	if err != nil {
+		return "", false, err
+	}
 	data := FrameData{
 		cacheDuration: d.cacheDuration,
 		cache:         &d.cache,
@@ -123,15 +129,21 @@ func wipe(dirs map[string]string) {
 	}
 }
 
-func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame, f *sdk.Frame) error {
+func (d *DuckDB) QueryFramesToFrames(name string, query string, frames []*sdk.Frame) (*sdk.Frame, error) {
+	err := d.validate(query)
+	if err != nil {
+		return nil, err
+	}
+
+	f := &sdk.Frame{}
 	res, cached, err := d.QueryFrames(name, query, frames)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = resultsToFrame(name, res, f, frames)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if cached {
 		for _, frame := range frames {
@@ -145,7 +157,7 @@ func (d *DuckDB) QueryFramesInto(name string, query string, frames []*sdk.Frame,
 			frame.Meta.Notices = append(frame.Meta.Notices, notice)
 		}
 	}
-	return nil
+	return f, nil
 }
 
 // Destroy will remove database files created by duckdb
@@ -293,4 +305,90 @@ func getTempDir() string {
 		temp = "/tmp"
 	}
 	return temp
+}
+
+const (
+	TABLE_NAME    = "table_name"
+	ERROR         = ".error"
+	ERROR_MESSAGE = ".error_message"
+)
+
+func (d *DuckDB) validate(rawSQL string) error {
+	rawSQL = strings.Replace(rawSQL, "'", "''", -1)
+	cmd := fmt.Sprintf("SELECT json_serialize_sql('%s')", rawSQL)
+	ret, err := d.RunCommands([]string{cmd})
+	if err != nil {
+		logger.Error("error validating sql", "error", err.Error(), "sql", rawSQL, "cmd", cmd)
+		return fmt.Errorf("error validating sql: %s", err.Error())
+	}
+
+	result := []map[string]any{}
+	err = json.Unmarshal([]byte(ret), &result)
+	if err != nil {
+		logger.Error("error converting json sql to ast", "error", err.Error(), "ret", ret)
+		return fmt.Errorf("error converting json to ast: %s", err.Error())
+	}
+
+	if len(result) == 0 {
+		logger.Error("no ast returned", "ret", ret)
+	}
+
+	var ast map[string]any
+	for _, v := range result[0] {
+		validAst, ok := v.(map[string]any)
+		if !ok {
+			logger.Error("invalid sql", "sql", ret)
+			return fmt.Errorf("invalid sql: %s", ret)
+		}
+		ast = validAst
+		break
+	}
+
+	errMsg := ast["error"]
+	if errMsg != nil {
+		errMsgBool, ok := errMsg.(bool)
+		if !ok {
+			logger.Error("error in ast", "error", ret)
+			return fmt.Errorf("error in ast: %v", ret)
+		}
+		if errMsgBool {
+			logger.Error("error in ast", "error", ret)
+			return fmt.Errorf("error in ast: %v", ret)
+		}
+	}
+
+	statements := ast["statements"]
+	if statements == nil {
+		logger.Error("no statements in ast", "ast", ast)
+		return fmt.Errorf("no statements in ast: %v", ast)
+	}
+
+	flat, err := flatten.Flatten(ast, "", flatten.DotStyle)
+	if err != nil {
+		logger.Error("error flattening ast", "error", err.Error(), "ast", ast)
+		return fmt.Errorf("error flattening ast: %s", err.Error())
+	}
+
+	for k, v := range flat {
+		if strings.HasSuffix(k, ERROR) {
+			v, ok := v.(bool)
+			if ok && v {
+				logger.Error("error in sql", "error", k)
+				return fmt.Errorf("error flattening ast: %s", k)
+			}
+		}
+		if strings.Contains(k, "from_table.function.function_name") {
+			logger.Error("function not allowed", "function", v)
+			return fmt.Errorf("function not allowed: %s", v)
+		}
+		if strings.HasSuffix(k, "from_table.table_name") {
+			v, ok := v.(string)
+			if ok && strings.Contains(v, ".") {
+				logger.Error("table names with . not allowed", "table", v)
+				return fmt.Errorf("table names with . not allowed: %s", v)
+			}
+		}
+	}
+
+	return nil
 }

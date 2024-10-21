@@ -26,6 +26,20 @@ func TestCommands(t *testing.T) {
 	assert.Contains(t, res, `[{"i":1,"j":5}]`)
 }
 
+func TestDotCommands(t *testing.T) {
+	db := NewInMemoryDB()
+
+	commands := []string{
+		".databases",
+	}
+	res, err := db.RunCommands(commands)
+	if err != nil {
+		t.Fail()
+		return
+	}
+	assert.Contains(t, res, `memory`)
+}
+
 func TestCommandsDocker(t *testing.T) {
 	db := NewInMemoryDB(Opts{Docker: true})
 
@@ -72,6 +86,63 @@ func TestQueryFrame(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Contains(t, res, `[{"value":"test"}]`)
+}
+
+func TestQueryAgg(t *testing.T) {
+	db := NewInMemoryDB()
+
+	var values = []string{"test"}
+	frame := data.NewFrame("foo", data.NewField("value", nil, values))
+	frame.RefID = "foo"
+	frames := []*data.Frame{frame}
+
+	res, _, err := db.QueryFrames("foo", "select min(a), b from foo", frames)
+	assert.Nil(t, err)
+
+	assert.Contains(t, res, `[{"value":"test"}]`)
+}
+
+func TestQueryJson(t *testing.T) {
+	db := NewInMemoryDB()
+
+	var values = []string{"test"}
+	frame := data.NewFrame("foo", data.NewField("value", nil, values))
+	frame.RefID = "foo"
+	frames := []*data.Frame{frame}
+
+	_, _, err := db.QueryFrames("foo", "SELECT * FROM read_json('todos.json')", frames)
+	assert.NotNil(t, err)
+}
+
+func TestValid(t *testing.T) {
+	db := NewInMemoryDB()
+
+	var values = []string{"test"}
+	frame := data.NewFrame("foo", data.NewField("value", nil, values))
+	frame.RefID = "foo"
+	frames := []*data.Frame{frame}
+
+	query := fmt.Sprintf(".databases %s", newline)
+	_, _, err := db.QueryFrames("foo", query, frames)
+	assert.NotNil(t, err)
+}
+
+func TestQueryFrameNoFileRead(t *testing.T) {
+	db := NewInMemoryDB()
+
+	var values = []string{"test"}
+	frame := data.NewFrame("foo", data.NewField("value", nil, values))
+	frame.RefID = "foo"
+	frames := []*data.Frame{frame}
+
+	_, _, err := db.QueryFrames("foo", "SELECT * FROM read_csv('flights.csv')", frames)
+	assert.NotNil(t, err)
+
+	_, _, err = db.QueryFrames("foo", "SELECT * FROM read_json('flights.json')", frames)
+	assert.NotNil(t, err)
+
+	_, _, err = db.QueryFrames("foo", "SELECT * FROM 'test.parquet'", frames)
+	assert.NotNil(t, err)
 }
 
 func TestQueryFrameCache(t *testing.T) {
@@ -153,8 +224,7 @@ func TestQueryFrameIntoFrame(t *testing.T) {
 
 	frames := []*data.Frame{frame, frame2}
 
-	model := &data.Frame{}
-	err := db.QueryFramesInto("foo", "select * from foo order by value desc", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select * from foo order by value desc", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
@@ -178,8 +248,7 @@ func TestQueryFrameIntoFrameDocker(t *testing.T) {
 
 	frames := []*data.Frame{frame, frame2}
 
-	model := &data.Frame{}
-	err := db.QueryFramesInto("foo", "select * from foo order by value desc", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select * from foo order by value desc", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
@@ -203,8 +272,7 @@ func TestQueryFrameIntoFrameMultipleColumns(t *testing.T) {
 
 	frames := []*data.Frame{frame}
 
-	model := &data.Frame{}
-	err := db.QueryFramesInto("B", "select * from A", frames, model)
+	model, err := db.QueryFramesToFrames("B", "select * from A", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, "Z State", model.Fields[0].Name)
@@ -230,8 +298,7 @@ func TestMultiFrame(t *testing.T) {
 
 	frames := []*data.Frame{frame, frame2}
 
-	model := &data.Frame{}
-	err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
@@ -257,8 +324,7 @@ func TestMultiFrame2(t *testing.T) {
 
 	frames := []*data.Frame{frame, frame2}
 
-	model := &data.Frame{}
-	err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
@@ -281,8 +347,7 @@ func TestTimestamps(t *testing.T) {
 
 	frames := []*data.Frame{frame}
 
-	model := &data.Frame{}
-	err = db.QueryFramesInto("foo", "select * from foo", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 1, model.Rows())
@@ -311,8 +376,7 @@ func TestTimeSeries(t *testing.T) {
 
 	frames := []*data.Frame{frame}
 
-	model := &data.Frame{}
-	err = db.QueryFramesInto("foo", "select * from foo", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, data.FrameTypeTimeSeriesWide, model.Meta.Type)
@@ -341,8 +405,7 @@ func TestTimeSeriesWide(t *testing.T) {
 
 	frames := []*data.Frame{frame}
 
-	model := &data.Frame{}
-	err = db.QueryFramesInto("foo", "select * from foo", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, data.FrameTypeTimeSeriesWide, model.Meta.Type)
@@ -377,8 +440,7 @@ func TestLabels(t *testing.T) {
 
 	frames := []*data.Frame{frame, frame2}
 
-	model := &data.Frame{}
-	err := db.QueryFramesInto("foo", "select * from foo", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, model.Rows())
@@ -427,8 +489,7 @@ func TestLabelsMultiFrame(t *testing.T) {
 	frames := []*data.Frame{frame, frame2}
 
 	// TODO - ordering is broken!
-	model := &data.Frame{}
-	err = db.QueryFramesInto("foo", "select * from foo order by timestamp desc", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select * from foo order by timestamp desc", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 4, model.Rows())
@@ -459,8 +520,7 @@ func TestTimeSeriesAggregate(t *testing.T) {
 
 	frames := []*data.Frame{frame}
 
-	model := &data.Frame{}
-	err = db.QueryFramesInto("foo", "select CURRENT_TIMESTAMP, min(time) as t, 1 as j from foo group by category", frames, model)
+	model, err := db.QueryFramesToFrames("foo", "select min(time) as t, 1 as j from foo group by category", frames)
 	assert.Nil(t, err)
 
 	assert.Equal(t, data.FrameTypeTimeSeriesWide, model.Meta.Type)
