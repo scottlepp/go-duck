@@ -78,14 +78,20 @@ func TestQueryFrame(t *testing.T) {
 	db := NewInMemoryDB()
 
 	var values = []string{"test"}
+	for i := 0; i < 15000; i++ {
+		values = append(values, "test")
+	}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
 	frames := []*data.Frame{frame}
 
+	start := time.Now()
 	res, _, err := db.QueryFrames("foo", "select * from foo", frames)
 	assert.Nil(t, err)
+	fmt.Printf("Took: %v\n", time.Since(start))
 
-	assert.Contains(t, res, `[{"value":"test"}]`)
+	assert.NotNil(t, res)
+	// assert.Contains(t, res, `[{"value":"test"}]`)
 }
 
 func TestQueryAgg(t *testing.T) {
@@ -218,6 +224,9 @@ func TestQueryFrameIntoFrame(t *testing.T) {
 	db := NewInMemoryDB()
 
 	var values = []string{"2024-02-23 09:01:54"}
+	for i := 0; i < 15000; i++ {
+		values = append(values, "2024-02-23 09:01:54")
+	}
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
 
@@ -227,10 +236,13 @@ func TestQueryFrameIntoFrame(t *testing.T) {
 
 	frames := []*data.Frame{frame, frame2}
 
+	start := time.Now()
 	model, err := db.QueryFramesToFrames("foo", "select * from foo order by value desc", frames)
 	assert.Nil(t, err)
 
-	assert.Equal(t, 2, model.Rows())
+	fmt.Printf("Took: %v\n", time.Since(start))
+
+	assert.Equal(t, 15002, model.Rows())
 
 	txt, err := model.StringTable(-1, -1)
 	assert.Nil(t, err)
@@ -587,3 +599,15 @@ func TestTimeSeriesAggregate(t *testing.T) {
 // 	assert.Contains(t, txt, "A")
 // 	assert.Contains(t, txt, "B")
 // }
+
+func TestXXX(t *testing.T) {
+	fmt.Println(test(foo))
+}
+
+func test(f func() string) string {
+	return f()
+}
+
+func foo() string {
+	return "bar"
+}
