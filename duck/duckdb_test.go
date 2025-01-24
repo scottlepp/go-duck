@@ -230,6 +230,8 @@ func TestQueryFrameIntoFrame(t *testing.T) {
 	frame := data.NewFrame("foo", data.NewField("value", nil, values))
 	frame.RefID = "foo"
 
+	fmt.Println("Frame Length: ", frame.Rows())
+
 	var values2 = []string{"2024-02-23 09:02:54"}
 	frame2 := data.NewFrame("foo", data.NewField("value", nil, values2))
 	frame2.RefID = "foo"
