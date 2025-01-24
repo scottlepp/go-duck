@@ -601,15 +601,3 @@ func TestTimeSeriesAggregate(t *testing.T) {
 // 	assert.Contains(t, txt, "A")
 // 	assert.Contains(t, txt, "B")
 // }
-
-func TestXXX(t *testing.T) {
-	fmt.Println(test(foo))
-}
-
-func test(f func() string) string {
-	return f()
-}
-
-func foo() string {
-	return "bar"
-}
